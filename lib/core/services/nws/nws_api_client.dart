@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -21,13 +22,32 @@ import 'nws_exceptions.dart';
 /// observation stations, etc.) rather than IDs the client reconstructs
 /// itself. This client accepts those URLs directly so it never has to guess
 /// at NWS's URL structure.
+///
+/// ## Debug logging
+///
+/// Every request funnels through the private [_getJson], which is where
+/// [NwsConfig.debugLoggingEnabled] gets checked. When on, it logs the HTTP
+/// method, the full endpoint URL, and the resulting status code (or error
+/// type) — nothing else. Headers (which include the contact email in
+/// User-Agent) and response/request bodies are never logged. See
+/// [NwsConfig.debugLoggingEnabled] for how to turn this on.
 class NwsApiClient {
-  NwsApiClient({http.Client? httpClient, Duration? timeout})
-      : _httpClient = httpClient ?? http.Client(),
-        _timeout = timeout ?? NwsConfig.requestTimeout;
+  NwsApiClient({
+    http.Client? httpClient,
+    Duration? timeout,
+    bool? debugLogging,
+    void Function(String message)? onDebugLog,
+  })  : _httpClient = httpClient ?? http.Client(),
+        _timeout = timeout ?? NwsConfig.requestTimeout,
+        _debugLogging = debugLogging ?? NwsConfig.debugLoggingEnabled,
+        _onDebugLog = onDebugLog ?? _defaultDebugLog;
 
   final http.Client _httpClient;
   final Duration _timeout;
+  final bool _debugLogging;
+  final void Function(String message) _onDebugLog;
+
+  static void _defaultDebugLog(String message) => developer.log(message, name: 'NWS');
 
   static final Uri _alertsActiveBase = Uri.parse('${NwsConfig.baseUrl}/alerts/active');
 
@@ -89,6 +109,7 @@ class NwsApiClient {
   }
 
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
+    final stopwatch = _debugLogging ? (Stopwatch()..start()) : null;
     final http.Response response;
     try {
       response = await _httpClient.get(
@@ -99,14 +120,20 @@ class NwsApiClient {
         },
       ).timeout(_timeout);
     } on TimeoutException {
+      _log(uri, error: 'timeout', stopwatch: stopwatch);
       throw const NwsTimeoutException();
     } on SocketException {
+      _log(uri, error: 'network error', stopwatch: stopwatch);
       throw const NwsNetworkException();
     } on HttpException {
+      _log(uri, error: 'network error', stopwatch: stopwatch);
       throw const NwsNetworkException();
     } on http.ClientException {
+      _log(uri, error: 'network error', stopwatch: stopwatch);
       throw const NwsNetworkException();
     }
+
+    _log(uri, statusCode: response.statusCode, stopwatch: stopwatch);
 
     switch (response.statusCode) {
       case 200:
@@ -130,6 +157,18 @@ class NwsApiClient {
     } on FormatException {
       throw const NwsParseException();
     }
+  }
+
+  /// Logs `GET <endpoint> -> <status or error> (<elapsed>ms)` when
+  /// [NwsConfig.debugLoggingEnabled] (or the constructor override) is on.
+  /// Deliberately takes only a URI and a status/error string — never
+  /// headers or bodies — so there's no way for this to leak the User-Agent
+  /// contact email or response content into logs.
+  void _log(Uri uri, {int? statusCode, String? error, Stopwatch? stopwatch}) {
+    if (!_debugLogging) return;
+    final result = statusCode?.toString() ?? error ?? 'unknown error';
+    final timing = stopwatch != null ? ' (${stopwatch.elapsedMilliseconds}ms)' : '';
+    _onDebugLog('GET $uri -> $result$timing');
   }
 
   void close() => _httpClient.close();
