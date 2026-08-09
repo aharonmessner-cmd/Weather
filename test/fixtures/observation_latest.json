@@ -1,0 +1,30 @@
+{
+  "id": "https://api.weather.gov/stations/KDCA/observations/2026-08-09T17:52:00+00:00",
+  "type": "Feature",
+  "geometry": { "type": "Point", "coordinates": [-77.0377, 38.8481] },
+  "properties": {
+    "station": "https://api.weather.gov/stations/KDCA",
+    "timestamp": "2026-08-09T17:52:00+00:00",
+    "textDescription": "Mostly Cloudy",
+    "icon": "https://api.weather.gov/icons/land/day/bkn?size=medium",
+    "temperature": { "unitCode": "wmoUnit:degC", "value": 32.8, "qualityControl": "V" },
+    "dewpoint": { "unitCode": "wmoUnit:degC", "value": 21.7, "qualityControl": "V" },
+    "windDirection": { "unitCode": "wmoUnit:degree_(angle)", "value": 210, "qualityControl": "V" },
+    "windSpeed": { "unitCode": "wmoUnit:km_h-1", "value": 14.8, "qualityControl": "V" },
+    "windGust": { "unitCode": "wmoUnit:km_h-1", "value": null, "qualityControl": "Z" },
+    "barometricPressure": { "unitCode": "wmoUnit:Pa", "value": 101830, "qualityControl": "V" },
+    "seaLevelPressure": { "unitCode": "wmoUnit:Pa", "value": null, "qualityControl": "Z" },
+    "visibility": { "unitCode": "wmoUnit:m", "value": 16090, "qualityControl": "C" },
+    "maxTemperatureLast24Hours": { "unitCode": "wmoUnit:degC", "value": null },
+    "minTemperatureLast24Hours": { "unitCode": "wmoUnit:degC", "value": null },
+    "precipitationLastHour": { "unitCode": "wmoUnit:mm", "value": null, "qualityControl": "Z" },
+    "precipitationLast3Hours": { "unitCode": "wmoUnit:mm", "value": null, "qualityControl": "Z" },
+    "precipitationLast6Hours": { "unitCode": "wmoUnit:mm", "value": null, "qualityControl": "Z" },
+    "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 54.7, "qualityControl": "V" },
+    "windChill": { "unitCode": "wmoUnit:degC", "value": null, "qualityControl": "V" },
+    "heatIndex": { "unitCode": "wmoUnit:degC", "value": 34.9, "qualityControl": "V" },
+    "cloudLayers": [
+      { "base": { "unitCode": "wmoUnit:m", "value": 1500 }, "amount": "BKN" }
+    ]
+  }
+}

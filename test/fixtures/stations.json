@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "id": "https://api.weather.gov/stations/KDCA",
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-77.0377, 38.8481] },
+      "properties": {
+        "@id": "https://api.weather.gov/stations/KDCA",
+        "stationIdentifier": "KDCA",
+        "name": "Washington, Ronald Reagan Washington National Airport",
+        "timeZone": "America/New_York"
+      }
+    },
+    {
+      "id": "https://api.weather.gov/stations/KADW",
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-76.867, 38.8108] },
+      "properties": {
+        "@id": "https://api.weather.gov/stations/KADW",
+        "stationIdentifier": "KADW",
+        "name": "Andrews AFB",
+        "timeZone": "America/New_York"
+      }
+    }
+  ]
+}

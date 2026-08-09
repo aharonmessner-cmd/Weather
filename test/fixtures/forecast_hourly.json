@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "updated": "2026-08-09T16:23:01+00:00",
+    "units": "us",
+    "generatedAt": "2026-08-09T17:05:12+00:00",
+    "periods": [
+      {
+        "number": 1,
+        "name": "",
+        "startTime": "2026-08-09T13:00:00-04:00",
+        "endTime": "2026-08-09T14:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 89,
+        "temperatureUnit": "F",
+        "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 20 },
+        "dewpoint": { "unitCode": "wmoUnit:degC", "value": 21.1 },
+        "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 58 },
+        "windSpeed": "8 mph",
+        "windDirection": "SW",
+        "icon": "https://api.weather.gov/icons/land/day/sct?size=small",
+        "shortForecast": "Partly Sunny"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "startTime": "2026-08-09T14:00:00-04:00",
+        "endTime": "2026-08-09T15:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 91,
+        "temperatureUnit": "F",
+        "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 40 },
+        "dewpoint": { "unitCode": "wmoUnit:degC", "value": 21.3 },
+        "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 55 },
+        "windSpeed": "10 mph",
+        "windDirection": "SW",
+        "icon": "https://api.weather.gov/icons/land/day/tsra,40?size=small",
+        "shortForecast": "Chance Showers And Thunderstorms"
+      }
+    ]
+  }
+}
