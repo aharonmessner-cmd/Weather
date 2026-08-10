@@ -30,7 +30,7 @@ class InfoMetricCard extends StatelessWidget {
     final secondaryColor = contentColor.withValues(alpha: 0.62);
     return GlassCard(
       style: style,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -43,9 +43,14 @@ class InfoMetricCard extends StatelessWidget {
               children: [
                 Text(
                   label,
+                  // Explicit tight line-height: the default font metrics'
+                  // leading was enough to overflow the details grid's
+                  // narrow-phone cell height by a couple of pixels even
+                  // though the two lines of text visually fit fine.
                   style: TextStyle(
                     fontFamily: AppTypography.fontBody,
                     fontSize: 12,
+                    height: 1.1,
                     fontWeight: FontWeight.w500,
                     color: secondaryColor,
                   ),
@@ -57,6 +62,7 @@ class InfoMetricCard extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: AppTypography.fontDisplay,
                     fontSize: 17,
+                    height: 1.1,
                     fontWeight: FontWeight.w600,
                     color: contentColor,
                   ),

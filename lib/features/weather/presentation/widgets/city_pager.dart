@@ -69,25 +69,32 @@ class _CityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: contentColor.withValues(alpha: selected ? 0.18 : 0.0),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: contentColor.withValues(alpha: selected ? 0.28 : 0.14)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: AppTypography.fontBody,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: contentColor.withValues(alpha: selected ? 1.0 : 0.7),
+    // Explicit `selected` semantics — InkWell already exposes the tap
+    // action and the label text, but without this a screen reader has no
+    // way to say which saved location is the one currently showing.
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: contentColor.withValues(alpha: selected ? 0.18 : 0.0),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: contentColor.withValues(alpha: selected ? 0.28 : 0.14)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: AppTypography.fontBody,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: contentColor.withValues(alpha: selected ? 1.0 : 0.7),
+              ),
             ),
           ),
         ),
