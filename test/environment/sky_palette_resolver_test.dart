@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:weather/core/models/weather_condition.dart';
 import 'package:weather/core/utils/solar_position.dart';
+import 'package:weather/environment/sky_palette.dart';
 import 'package:weather/environment/sky_palette_resolver.dart';
 
 SolarPosition _position(double elevation, {double azimuth = 180, double hourAngle = 0}) {
@@ -107,6 +108,69 @@ void main() {
       final palette = resolveSkyPalette(position: _position(65), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
       expect(palette.heroContentBrightness, Brightness.light);
       expect(palette.starOpacity, lessThan(0.05));
+    });
+  });
+
+  group('resolveSkyPalette — midColor (dawn/dusk gradient band)', () {
+    Color naturalMid(SkyPalette p) => Color.lerp(p.topColor, p.bottomColor, p.midColorStop)!;
+
+    test('midColor is a visual no-op (matches the straight interpolation) at high midday sun', () {
+      final palette = resolveSkyPalette(position: _position(60), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+      expect(_colorDistance(palette.midColor, naturalMid(palette)), lessThan(1));
+    });
+
+    test('midColor is a visual no-op deep at night', () {
+      final palette = resolveSkyPalette(position: _position(-70), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+      expect(_colorDistance(palette.midColor, naturalMid(palette)), lessThan(1));
+    });
+
+    test('midColor visibly diverges from the straight interpolation near the horizon (clear sky)', () {
+      final palette = resolveSkyPalette(position: _position(0), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+      expect(_colorDistance(palette.midColor, naturalMid(palette)), greaterThan(3));
+    });
+
+    test('overcast damps the dawn/dusk mid-band even near the horizon', () {
+      final clear = resolveSkyPalette(position: _position(0), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+      final overcast = resolveSkyPalette(position: _position(0), condition: WeatherCondition.overcast, uiBrightness: Brightness.dark);
+
+      final clearDivergence = _colorDistance(clear.midColor, naturalMid(clear));
+      final overcastDivergence = _colorDistance(overcast.midColor, naturalMid(overcast));
+      expect(overcastDivergence, lessThan(clearDivergence));
+    });
+
+    test('two moments a fraction of a degree apart resolve to nearly identical midColor', () {
+      for (final elevation in [-14.01, -14.0, -13.99, -0.01, 0.0, 0.01, 13.99, 14.0, 14.01]) {
+        final a = resolveSkyPalette(position: _position(elevation), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+        final b = resolveSkyPalette(position: _position(elevation + 0.02), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+        expect(_colorDistance(a.midColor, b.midColor), lessThan(2), reason: 'midColor jumped near elevation $elevation°');
+      }
+    });
+  });
+
+  group('resolveSkyPalette — precipitationKind', () {
+    test('clear skies have no precipitation kind', () {
+      final palette = resolveSkyPalette(position: _position(20), condition: WeatherCondition.clearSky, uiBrightness: Brightness.dark);
+      expect(palette.precipitationKind, SkyPrecipitationKind.none);
+    });
+
+    test('rain condition resolves to the rain kind', () {
+      final palette = resolveSkyPalette(position: _position(20), condition: WeatherCondition.rain, uiBrightness: Brightness.dark);
+      expect(palette.precipitationKind, SkyPrecipitationKind.rain);
+    });
+
+    test('thunderstorms resolve to the rain kind', () {
+      final palette = resolveSkyPalette(position: _position(20), condition: WeatherCondition.thunderstorms, uiBrightness: Brightness.dark);
+      expect(palette.precipitationKind, SkyPrecipitationKind.rain);
+    });
+
+    test('snow condition resolves to the snow kind', () {
+      final palette = resolveSkyPalette(position: _position(20), condition: WeatherCondition.snow, uiBrightness: Brightness.dark);
+      expect(palette.precipitationKind, SkyPrecipitationKind.snow);
+    });
+
+    test('wintry mix resolves to the snow kind', () {
+      final palette = resolveSkyPalette(position: _position(20), condition: WeatherCondition.wintryMix, uiBrightness: Brightness.dark);
+      expect(palette.precipitationKind, SkyPrecipitationKind.snow);
     });
   });
 }

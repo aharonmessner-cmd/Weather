@@ -50,7 +50,10 @@ final List<_SkyAnchor> _anchors = [
     topColor: Color(0xFF070B1D),
     bottomColor: Color(0xFF141B3A),
     starOpacity: 0.9,
-    horizonGlowIntensity: 0,
+    // A faint hint of glow this far out, rather than a flat zero, so the
+    // approach to dawn (or the fade after dusk) starts gently instead of
+    // the glow feeling like it switches on only once it crosses -8°.
+    horizonGlowIntensity: 0.03,
     horizonGlowColor: _dawnDuskGlow,
   ),
   const _SkyAnchor(
@@ -90,7 +93,17 @@ final List<_SkyAnchor> _anchors = [
     topColor: Color(0xFF4F9BE0),
     bottomColor: Color(0xFFBFE0F5),
     starOpacity: 0,
-    horizonGlowIntensity: 0.15,
+    horizonGlowIntensity: 0.18,
+    horizonGlowColor: _goldenGlow,
+  ),
+  // Softens the 20°->60° stretch into two smaller steps rather than one
+  // longer linear one, for a gentler taper as the glow finishes fading.
+  const _SkyAnchor(
+    elevation: 35,
+    topColor: Color(0xFF479AE2),
+    bottomColor: Color(0xFFC7E5F9),
+    starOpacity: 0,
+    horizonGlowIntensity: 0.06,
     horizonGlowColor: _goldenGlow,
   ),
   const _SkyAnchor(
@@ -113,12 +126,14 @@ class _ConditionEffects {
   const _ConditionEffects({
     this.cloudCoverage = 0,
     this.precipitationIntensity = 0,
+    this.precipitationKind = SkyPrecipitationKind.none,
     this.stormFlicker = false,
     this.overcastFlattening = 0,
   });
 
   final double cloudCoverage;
   final double precipitationIntensity;
+  final SkyPrecipitationKind precipitationKind;
   final bool stormFlicker;
 
   /// 0–1: how much this condition should mute the gradient/glow toward a
@@ -144,21 +159,42 @@ _ConditionEffects _effectsFor(WeatherCondition condition) {
     case WeatherCondition.dust:
       return const _ConditionEffects(cloudCoverage: 0.55, overcastFlattening: 0.5);
     case WeatherCondition.drizzle:
-      return const _ConditionEffects(cloudCoverage: 0.75, precipitationIntensity: 0.25, overcastFlattening: 0.3);
+      return const _ConditionEffects(
+        cloudCoverage: 0.75,
+        precipitationIntensity: 0.25,
+        precipitationKind: SkyPrecipitationKind.rain,
+        overcastFlattening: 0.3,
+      );
     case WeatherCondition.rain:
     case WeatherCondition.rainShowers:
-      return const _ConditionEffects(cloudCoverage: 0.85, precipitationIntensity: 0.55, overcastFlattening: 0.4);
+      return const _ConditionEffects(
+        cloudCoverage: 0.85,
+        precipitationIntensity: 0.55,
+        precipitationKind: SkyPrecipitationKind.rain,
+        overcastFlattening: 0.4,
+      );
     case WeatherCondition.snow:
     case WeatherCondition.snowShowers:
-      return const _ConditionEffects(cloudCoverage: 0.8, precipitationIntensity: 0.45, overcastFlattening: 0.35);
+      return const _ConditionEffects(
+        cloudCoverage: 0.8,
+        precipitationIntensity: 0.45,
+        precipitationKind: SkyPrecipitationKind.snow,
+        overcastFlattening: 0.35,
+      );
     case WeatherCondition.sleet:
     case WeatherCondition.freezingRain:
     case WeatherCondition.wintryMix:
-      return const _ConditionEffects(cloudCoverage: 0.85, precipitationIntensity: 0.5, overcastFlattening: 0.4);
+      return const _ConditionEffects(
+        cloudCoverage: 0.85,
+        precipitationIntensity: 0.5,
+        precipitationKind: SkyPrecipitationKind.snow,
+        overcastFlattening: 0.4,
+      );
     case WeatherCondition.thunderstorms:
       return const _ConditionEffects(
         cloudCoverage: 0.95,
         precipitationIntensity: 0.75,
+        precipitationKind: SkyPrecipitationKind.rain,
         stormFlicker: true,
         overcastFlattening: 0.6,
       );
@@ -168,6 +204,7 @@ _ConditionEffects _effectsFor(WeatherCondition condition) {
       return const _ConditionEffects(
         cloudCoverage: 1.0,
         precipitationIntensity: 0.9,
+        precipitationKind: SkyPrecipitationKind.rain,
         stormFlicker: true,
         overcastFlattening: 0.75,
       );
@@ -242,6 +279,18 @@ SkyPalette resolveSkyPalette({
   final averageLuminance = (topColor.computeLuminance() + bottomColor.computeLuminance()) / 2;
   final heroContentBrightness = averageLuminance > 0.42 ? Brightness.light : Brightness.dark;
 
+  // A third gradient stop, low in the sky, that only reads as a distinct
+  // warm band within roughly 14 degrees of the horizon on either side —
+  // real dawn/dusk skies have a visible warm layer between the zenith
+  // color and the horizon glow itself, not just a straight blend between
+  // the two. Clouds damp it along with everything else near the horizon.
+  const midColorStop = 0.62;
+  final naturalMidColor = Color.lerp(topColor, bottomColor, midColorStop)!;
+  final sunriseBandWeight = (1 - (elevation.abs() / 14.0)).clamp(0.0, 1.0);
+  final midBandStrength = sunriseBandWeight * (1 - effects.cloudCoverage * 0.7) * 0.5;
+  final warmMidColor = Color.lerp(glowColor, Colors.white, 0.15)!;
+  final midColor = Color.lerp(naturalMidColor, warmMidColor, midBandStrength)!;
+
   final sunMoonElevationFraction = ((position.elevationDegrees + 10) / 100).clamp(0.0, 1.0);
   final sunMoonVisibility = position.elevationDegrees > -4
       ? (1 - effects.cloudCoverage * 0.9).clamp(0.0, 1.0)
@@ -250,6 +299,8 @@ SkyPalette resolveSkyPalette({
   return SkyPalette(
     topColor: topColor,
     bottomColor: bottomColor,
+    midColor: midColor,
+    midColorStop: midColorStop,
     starOpacity: starOpacity.clamp(0.0, 1.0),
     cloudOpacity: effects.cloudCoverage,
     cloudCoverageFraction: effects.cloudCoverage,
@@ -260,6 +311,7 @@ SkyPalette resolveSkyPalette({
     sunMoonElevationFraction: sunMoonElevationFraction,
     sunMoonAzimuthDegrees: position.azimuthDegrees,
     precipitationIntensity: effects.precipitationIntensity,
+    precipitationKind: effects.precipitationIntensity > 0 ? effects.precipitationKind : SkyPrecipitationKind.none,
     stormFlicker: effects.stormFlicker,
     heroContentBrightness: heroContentBrightness,
   );

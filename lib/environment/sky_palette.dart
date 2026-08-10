@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+/// Which particle shape [precipitationIntensity] should render as. Kept as
+/// a small enum rather than a continuous field deliberately: unlike every
+/// other field on [SkyPalette], "is this rain or snow" has no meaningful
+/// continuous interpolation between its states — it comes straight from
+/// the categorical [WeatherCondition] the resolver was given, same as
+/// [SkyPalette.isSunVisible].
+enum SkyPrecipitationKind { none, rain, snow }
+
 /// A fully-resolved, continuous description of what the sky should look
 /// like right now. Every field here is either a color or a 0–1 scalar —
 /// there is deliberately no enum/bucket in this class, so nothing that
@@ -12,6 +20,8 @@ class SkyPalette {
   const SkyPalette({
     required this.topColor,
     required this.bottomColor,
+    required this.midColor,
+    this.midColorStop = 0.62,
     required this.starOpacity,
     required this.cloudOpacity,
     required this.cloudCoverageFraction,
@@ -22,6 +32,7 @@ class SkyPalette {
     required this.sunMoonElevationFraction,
     required this.sunMoonAzimuthDegrees,
     required this.precipitationIntensity,
+    this.precipitationKind = SkyPrecipitationKind.none,
     required this.stormFlicker,
     required this.heroContentBrightness,
   });
@@ -33,6 +44,16 @@ class SkyPalette {
   /// can dampen the glow without needing a whole separate gradient.
   final Color topColor;
   final Color bottomColor;
+
+  /// A third gradient stop between [topColor] and [bottomColor], at
+  /// [midColorStop]. Always present, but computed so that outside the
+  /// sunrise/sunset elevation window it equals the straight interpolation
+  /// [topColor]/[bottomColor] would already produce there — i.e. it's a
+  /// visual no-op at midday/midnight, and only reads as a distinct warm
+  /// band low in the sky during dawn/dusk, fading in and out continuously
+  /// with elevation like everything else here.
+  final Color midColor;
+  final double midColorStop;
 
   /// 0 (invisible) – 1 (fully visible). Naturally near 0 in daylight and
   /// near 1 deep in a clear night; also reduced by cloud cover.
@@ -71,6 +92,10 @@ class SkyPalette {
   /// 0–1 suggested strength of the (currently subtle) precipitation
   /// overlay.
   final double precipitationIntensity;
+
+  /// Which particle shape the precipitation overlay should draw — see
+  /// [SkyPrecipitationKind]. `none` when [precipitationIntensity] is 0.
+  final SkyPrecipitationKind precipitationKind;
 
   /// Whether this palette permits an occasional lightning flicker
   /// (thunderstorm conditions only).
