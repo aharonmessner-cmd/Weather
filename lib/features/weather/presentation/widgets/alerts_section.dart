@@ -45,6 +45,7 @@ class AlertsSection extends StatelessWidget {
           for (var i = 0; i < alerts.length; i++) ...[
             AlertCard(
               alert: alerts[i],
+              contentColor: contentColor,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => AlertDetailScreen(alert: alerts[i])),
               ),

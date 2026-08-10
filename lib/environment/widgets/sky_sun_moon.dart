@@ -25,7 +25,12 @@ class SkySunMoon extends StatelessWidget {
     // an edge rather than wrapping — a deliberate simplification for V1.
     final horizontalFraction = ((palette.sunMoonAzimuthDegrees - 90) / 180).clamp(0.0, 1.0);
     final x = -0.82 + horizontalFraction * 1.64;
-    final y = -0.92 + (1 - palette.sunMoonElevationFraction) * 1.05;
+    // Kept within the top third of the sky even at the horizon (elevation
+    // fraction 0) — the hero's location/temperature/H-L content occupies
+    // the vertical center of the screen, and the glyph drifting down into
+    // that band read as crowding the H/L pill rather than sitting behind
+    // it in the environment.
+    final y = -0.92 + (1 - palette.sunMoonElevationFraction) * 0.7;
 
     return Align(
       alignment: Alignment(x, y),
