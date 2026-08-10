@@ -55,14 +55,18 @@ class SunriseArcCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 46,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _SunArcPainter(
-                progress: progress,
-                arcColor: contentColor.withValues(alpha: 0.28),
-                sunColor: contentColor,
+          Semantics(
+            label: _progressLabel(progress),
+            excludeSemantics: true,
+            child: SizedBox(
+              height: 46,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _SunArcPainter(
+                  progress: progress,
+                  arcColor: contentColor.withValues(alpha: 0.28),
+                  sunColor: contentColor,
+                ),
               ),
             ),
           ),
@@ -137,6 +141,16 @@ class _TimeLabel extends StatelessWidget {
     final suffix = time.hour < 12 ? 'AM' : 'PM';
     return '$hour:$minute $suffix';
   }
+}
+
+/// The arc graphic's only accessible description — the sun's position
+/// along it (how far through the day it is) has no other on-screen text
+/// equivalent, unlike sunrise/sunset which are also spelled out below it.
+String _progressLabel(double? progress) {
+  if (progress == null) return 'Sun position unavailable';
+  if (progress <= 0) return 'Before sunrise';
+  if (progress >= 1) return 'After sunset';
+  return '${(progress * 100).round()} percent of the way from sunrise to sunset';
 }
 
 class _SunArcPainter extends CustomPainter {

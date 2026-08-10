@@ -25,53 +25,65 @@ class InfoMetricCard extends StatelessWidget {
   final Color contentColor;
   final GlassStyle style;
 
+  /// This card sits in a fixed-aspect-ratio grid cell (see
+  /// [WeatherDetailsGrid]) that can't grow taller to fit larger text, so
+  /// the system text scale is capped rather than left unbounded — large
+  /// scale factors still get bigger, clearer text here, just not enough to
+  /// blow out the cell height.
+  static const _maxTextScale = 1.3;
+
   @override
   Widget build(BuildContext context) {
     final secondaryColor = contentColor.withValues(alpha: 0.62);
-    return GlassCard(
-      style: style,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20, color: secondaryColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  // Explicit tight line-height: the default font metrics'
-                  // leading was enough to overflow the details grid's
-                  // narrow-phone cell height by a couple of pixels even
-                  // though the two lines of text visually fit fine.
-                  style: TextStyle(
-                    fontFamily: AppTypography.fontBody,
-                    fontSize: 12,
-                    height: 1.1,
-                    fontWeight: FontWeight.w500,
-                    color: secondaryColor,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _maxTextScale),
+      ),
+      child: GlassCard(
+        style: style,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: secondaryColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    // Explicit tight line-height: the default font metrics'
+                    // leading was enough to overflow the details grid's
+                    // narrow-phone cell height by a couple of pixels even
+                    // though the two lines of text visually fit fine.
+                    style: TextStyle(
+                      fontFamily: AppTypography.fontBody,
+                      fontSize: 12,
+                      height: 1.1,
+                      fontWeight: FontWeight.w500,
+                      color: secondaryColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontFamily: AppTypography.fontDisplay,
-                    fontSize: 17,
-                    height: 1.1,
-                    fontWeight: FontWeight.w600,
-                    color: contentColor,
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontFamily: AppTypography.fontDisplay,
+                      fontSize: 17,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      color: contentColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

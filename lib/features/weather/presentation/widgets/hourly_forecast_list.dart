@@ -67,39 +67,54 @@ class _HourColumn extends StatelessWidget {
     final secondaryColor = contentColor.withValues(alpha: 0.62);
     final precip = entry.precipitationProbabilityPercent ?? 0;
 
+    // The column is a fixed-size cell in a horizontally-scrolling strip, so
+    // (like InfoMetricCard) it can't grow to fit an arbitrarily large
+    // system text scale. FittedBox scales the whole cell down as needed —
+    // same escape hatch TemperatureHero and the sunrise time labels use —
+    // so a large scale factor shrinks this column rather than overflowing
+    // it, while normal scale factors render at their natural size.
     return SizedBox(
       width: 46,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _formatHour(entry.time),
-            style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 12, fontWeight: FontWeight.w500, color: secondaryColor),
-          ),
-          const SizedBox(height: 10),
-          WeatherGlyph(condition: entry.condition, isDaytime: isDaytime, size: 24),
-          const SizedBox(height: 10),
-          Text(
-            entry.temperatureFahrenheit != null ? '${entry.temperatureFahrenheit}°' : '--',
-            style: TextStyle(fontFamily: AppTypography.fontDisplay, fontSize: 15, fontWeight: FontWeight.w600, color: contentColor),
-          ),
-          SizedBox(
-            height: 16,
-            child: precip > 0
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.water_drop_rounded, size: 10, color: secondaryColor),
-                      const SizedBox(width: 2),
-                      Text(
-                        '$precip%',
-                        style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 11, color: secondaryColor),
+      height: 116,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _formatHour(entry.time),
+              style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 12, fontWeight: FontWeight.w500, color: secondaryColor),
+            ),
+            const SizedBox(height: 10),
+            WeatherGlyph(condition: entry.condition, isDaytime: isDaytime, size: 24),
+            const SizedBox(height: 10),
+            Text(
+              entry.temperatureFahrenheit != null ? '${entry.temperatureFahrenheit}°' : '--',
+              style: TextStyle(fontFamily: AppTypography.fontDisplay, fontSize: 15, fontWeight: FontWeight.w600, color: contentColor),
+            ),
+            SizedBox(
+              width: 46,
+              height: 16,
+              child: precip > 0
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.water_drop_rounded, size: 10, color: secondaryColor),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$precip%',
+                            style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 11, color: secondaryColor),
+                          ),
+                        ],
                       ),
-                    ],
-                  )
-                : null,
-          ),
-        ],
+                    )
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }
