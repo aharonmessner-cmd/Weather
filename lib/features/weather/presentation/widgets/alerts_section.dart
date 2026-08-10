@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/weather_alert.dart';
-import '../../../../widgets/section_card.dart';
+import '../../../../theme/app_typography.dart';
+import '../../../../theme/glass_style.dart';
+import '../../../../widgets/glass_card.dart';
 import '../../../alerts/presentation/alert_detail_screen.dart';
 import '../../../alerts/presentation/widgets/alert_card.dart';
 
@@ -9,18 +11,37 @@ import '../../../alerts/presentation/widgets/alert_card.dart';
 /// there are no active alerts, rather than an empty "Alerts" card — the
 /// dedicated Alerts tab is where "no active alerts" gets its own message.
 class AlertsSection extends StatelessWidget {
-  const AlertsSection({super.key, required this.alerts});
+  const AlertsSection({
+    super.key,
+    required this.alerts,
+    required this.contentColor,
+    required this.style,
+  });
 
   final List<WeatherAlert> alerts;
+  final Color contentColor;
+  final GlassStyle style;
 
   @override
   Widget build(BuildContext context) {
     if (alerts.isEmpty) return const SizedBox.shrink();
 
-    return SectionCard(
-      title: alerts.length == 1 ? 'Alert' : 'Alerts (${alerts.length})',
+    return GlassCard(
+      style: style,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          Text(
+            alerts.length == 1 ? 'Alert' : 'Alerts (${alerts.length})',
+            style: TextStyle(
+              fontFamily: AppTypography.fontBody,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: contentColor.withValues(alpha: 0.62),
+            ),
+          ),
+          const SizedBox(height: 12),
           for (var i = 0; i < alerts.length; i++) ...[
             AlertCard(
               alert: alerts[i],

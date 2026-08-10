@@ -5,27 +5,27 @@ import '../../../../app/app_shell.dart';
 import '../../../../core/models/location.dart';
 import '../../../../core/models/weather_data.dart';
 import '../../../../core/utils/sun_times.dart';
-import '../../../../theme/app_colors.dart';
+import '../../../../environment/weather_environment.dart';
 import '../../../../theme/glass_style.dart';
 import '../../../../widgets/empty_state.dart';
 import '../../../../widgets/error_view.dart';
+import '../../../../widgets/last_updated_label.dart';
 import '../../../../widgets/responsive.dart';
-import '../../../../widgets/section_card.dart';
 import '../../../locations/application/locations_controller.dart';
 import '../../application/weather_controller.dart';
 import '../widgets/alerts_section.dart';
-import '../widgets/current_conditions_card.dart';
+import '../widgets/city_pager.dart';
 import '../widgets/daily_forecast_list.dart';
 import '../widgets/hourly_forecast_list.dart';
 import '../widgets/weather_details_grid.dart';
+import '../widgets/weather_hero_section.dart';
 
-// TODO(stage-4): this screen still predates the WeatherEnvironment
-// integration — it renders the reskinned Stage 3 components in a flat
-// "chrome" glass style (no sky behind them yet) purely so the app keeps
-// compiling and running between stages. Stage 4 replaces this whole file.
-GlassStyle _bridgeGlassStyle(BuildContext context) =>
-    GlassStyle.chrome(Theme.of(context).brightness == Brightness.dark ? AppColors.dark : AppColors.light);
-
+/// The Weather tab: a real-time [WeatherEnvironment] sky filling the
+/// screen, with the hero temperature and every forecast card sitting
+/// directly on it. "You're looking through a window at the current sky" —
+/// see the module doc on [WeatherEnvironment] for the full design
+/// rationale. The loading/error/no-location states stay plain (no sky):
+/// there's no resolved condition to render a sky from yet.
 class WeatherScreen extends ConsumerWidget {
   const WeatherScreen({super.key});
 
@@ -51,21 +51,15 @@ class WeatherScreen extends ConsumerWidget {
 
     final weatherAsync = ref.watch(weatherControllerProvider(location));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(location.name),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => _refresh(context, ref, location),
-          ),
-        ],
+    return weatherAsync.when(
+      data: (data) => _WeatherBody(location: location, data: data, onRefresh: () => _refresh(context, ref, location)),
+      loading: () => Scaffold(
+        appBar: AppBar(title: Text(location.name)),
+        body: const Center(child: CircularProgressIndicator()),
       ),
-      body: weatherAsync.when(
-        data: (data) => _WeatherBody(data: data, onRefresh: () => _refresh(context, ref, location)),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
+      error: (error, _) => Scaffold(
+        appBar: AppBar(title: Text(location.name)),
+        body: ErrorView(
           error: error,
           onRetry: () => ref.invalidate(weatherControllerProvider(location)),
         ),
@@ -86,69 +80,157 @@ class WeatherScreen extends ConsumerWidget {
   }
 }
 
-class _WeatherBody extends StatelessWidget {
-  const _WeatherBody({required this.data, required this.onRefresh});
+class _WeatherBody extends ConsumerWidget {
+  const _WeatherBody({required this.location, required this.data, required this.onRefresh});
 
+  final Location location;
   final WeatherData data;
   final Future<void> Function() onRefresh;
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    final locations = ref.watch(locationsControllerProvider);
+
+    return Scaffold(
+      body: WeatherEnvironment(
+        condition: data.current.condition,
+        now: now,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        temperatureFahrenheit: data.current.temperatureFahrenheit,
+        child: Builder(
+          builder: (context) {
+            final palette = WeatherEnvironment.paletteOf(context);
+            final isDarkSky = palette.heroContentBrightness == Brightness.dark;
+            final contentColor = isDarkSky ? Colors.white : const Color(0xFF12141C);
+            final style = GlassStyle.onSky(palette.heroContentBrightness);
+            final sunTimes = computeSunTimes(latitude: location.latitude, longitude: location.longitude, date: now);
+            final isStale = data.isStaleAsOf(now);
+
+            return SafeArea(
+              child: RefreshIndicator(
+                onRefresh: onRefresh,
+                child: screenSizeOf(context) == ScreenSize.desktop
+                    ? _DesktopLayout(
+                        data: data,
+                        locations: locations,
+                        contentColor: contentColor,
+                        style: style,
+                        sunTimes: sunTimes,
+                        now: now,
+                        isStale: isStale,
+                        onSelectLocation: (id) => ref.read(selectedLocationIdProvider.notifier).state = id,
+                        onRefresh: onRefresh,
+                      )
+                    : _CompactLayout(
+                        data: data,
+                        locations: locations,
+                        contentColor: contentColor,
+                        style: style,
+                        sunTimes: sunTimes,
+                        now: now,
+                        isStale: isStale,
+                        constrainWidth: screenSizeOf(context) == ScreenSize.tablet,
+                        onSelectLocation: (id) => ref.read(selectedLocationIdProvider.notifier).state = id,
+                        onRefresh: onRefresh,
+                      ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({
+    required this.contentColor,
+    required this.fetchedAt,
+    required this.isStale,
+    required this.onRefresh,
+  });
+
+  final Color contentColor;
+  final DateTime fetchedAt;
+  final bool isStale;
+  final Future<void> Function() onRefresh;
+
+  @override
   Widget build(BuildContext context) {
-    final screenSize = screenSizeOf(context);
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: screenSize == ScreenSize.desktop
-          ? _DesktopLayout(data: data)
-          : _CompactLayout(data: data, constrainWidth: screenSize == ScreenSize.tablet),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+      child: Row(
+        children: [
+          Expanded(child: LastUpdatedLabel(fetchedAt: fetchedAt, isStale: isStale, color: contentColor.withValues(alpha: 0.6))),
+          IconButton(
+            tooltip: 'Refresh',
+            icon: Icon(Icons.refresh_rounded, color: contentColor.withValues(alpha: 0.85)),
+            onPressed: onRefresh,
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _CompactLayout extends StatelessWidget {
-  const _CompactLayout({required this.data, this.constrainWidth = false});
+  const _CompactLayout({
+    required this.data,
+    required this.locations,
+    required this.contentColor,
+    required this.style,
+    required this.sunTimes,
+    required this.now,
+    required this.isStale,
+    required this.onSelectLocation,
+    required this.onRefresh,
+    this.constrainWidth = false,
+  });
 
   final WeatherData data;
+  final List<Location> locations;
+  final Color contentColor;
+  final GlassStyle style;
+  final SunTimes sunTimes;
+  final DateTime now;
+  final bool isStale;
+  final ValueChanged<String> onSelectLocation;
+  final Future<void> Function() onRefresh;
   final bool constrainWidth;
 
   @override
   Widget build(BuildContext context) {
-    final contentColor = Theme.of(context).colorScheme.onSurface;
-    final style = _bridgeGlassStyle(context);
-    final now = DateTime.now();
-    final sunTimes = computeSunTimes(
-      latitude: data.location.latitude,
-      longitude: data.location.longitude,
-      date: now,
-    );
-
     final content = ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
-        CurrentConditionsCard(data: data),
-        const SizedBox(height: 16),
-        SectionCard(
-          title: 'Hourly Forecast',
-          child: HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style),
-        ),
-        const SizedBox(height: 16),
-        SectionCard(
-          title: 'Forecast',
-          child: DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
-        ),
-        const SizedBox(height: 16),
-        SectionCard(
-          title: 'Details',
-          child: WeatherDetailsGrid(
-            observation: data.observation,
-            hourlyEntries: data.hourly,
-            sunTimes: sunTimes,
-            now: now,
+        _TopBar(contentColor: contentColor, fetchedAt: data.fetchedAt, isStale: isStale, onRefresh: onRefresh),
+        WeatherHeroSection(
+          locationName: data.location.name,
+          current: data.current,
+          locationSwitcher: CityPager(
+            locations: locations,
+            selectedId: data.location.id,
+            onSelect: onSelectLocation,
             contentColor: contentColor,
-            style: style,
           ),
         ),
+        const SizedBox(height: 24),
+        HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style, isDaytime: data.current.isDaytime ?? true),
         const SizedBox(height: 16),
-        AlertsSection(alerts: data.alerts),
+        DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
+        const SizedBox(height: 16),
+        WeatherDetailsGrid(
+          observation: data.observation,
+          hourlyEntries: data.hourly,
+          sunTimes: sunTimes,
+          now: now,
+          contentColor: contentColor,
+          style: style,
+        ),
+        const SizedBox(height: 16),
+        AlertsSection(alerts: data.alerts, contentColor: contentColor, style: style),
       ],
     );
 
@@ -160,73 +242,70 @@ class _CompactLayout extends StatelessWidget {
 }
 
 class _DesktopLayout extends StatelessWidget {
-  const _DesktopLayout({required this.data});
+  const _DesktopLayout({
+    required this.data,
+    required this.locations,
+    required this.contentColor,
+    required this.style,
+    required this.sunTimes,
+    required this.now,
+    required this.isStale,
+    required this.onSelectLocation,
+    required this.onRefresh,
+  });
 
   final WeatherData data;
+  final List<Location> locations;
+  final Color contentColor;
+  final GlassStyle style;
+  final SunTimes sunTimes;
+  final DateTime now;
+  final bool isStale;
+  final ValueChanged<String> onSelectLocation;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final contentColor = Theme.of(context).colorScheme.onSurface;
-    final style = _bridgeGlassStyle(context);
-    final now = DateTime.now();
-    final sunTimes = computeSunTimes(
-      latitude: data.location.latitude,
-      longitude: data.location.longitude,
-      date: now,
-    );
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
           child: Column(
             children: [
-              // Plain top-aligned rows rather than IntrinsicHeight: GridView
-              // (used inside the Details card) doesn't report a usable
-              // intrinsic height, which left the Details card clipped
-              // instead of the row growing to fit it.
+              _TopBar(contentColor: contentColor, fetchedAt: data.fetchedAt, isStale: isStale, onRefresh: onRefresh),
+              WeatherHeroSection(
+                locationName: data.location.name,
+                current: data.current,
+                locationSwitcher: CityPager(
+                  locations: locations,
+                  selectedId: data.location.id,
+                  onSelect: onSelectLocation,
+                  contentColor: contentColor,
+                ),
+              ),
+              const SizedBox(height: 24),
+              HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style, isDaytime: data.current.isDaytime ?? true),
+              const SizedBox(height: 20),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: CurrentConditionsCard(data: data)),
+                  Expanded(child: DailyForecastList(entries: data.daily, contentColor: contentColor, style: style)),
                   const SizedBox(width: 20),
                   Expanded(
-                    child: SectionCard(
-                      title: 'Hourly Forecast',
-                      child: HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style),
+                    child: WeatherDetailsGrid(
+                      observation: data.observation,
+                      hourlyEntries: data.hourly,
+                      sunTimes: sunTimes,
+                      now: now,
+                      contentColor: contentColor,
+                      style: style,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: SectionCard(
-                      title: 'Forecast',
-                      child: DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: SectionCard(
-                      title: 'Details',
-                      child: WeatherDetailsGrid(
-                        observation: data.observation,
-                        hourlyEntries: data.hourly,
-                        sunTimes: sunTimes,
-                        now: now,
-                        contentColor: contentColor,
-                        style: style,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              AlertsSection(alerts: data.alerts),
+              AlertsSection(alerts: data.alerts, contentColor: contentColor, style: style),
             ],
           ),
         ),

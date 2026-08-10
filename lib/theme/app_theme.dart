@@ -46,7 +46,10 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: palette.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: palette.divider),
+        ),
         margin: EdgeInsets.zero,
       ),
       appBarTheme: AppBarTheme(
