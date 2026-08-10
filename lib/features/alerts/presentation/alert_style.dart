@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/weather_alert.dart';
-import '../../../theme/app_theme.dart';
+import '../../../theme/app_colors.dart';
 
 /// Maps NWS alert severity to the accent color used across the alert card,
 /// the Alerts tab, and the detail view — kept in one place so severity
