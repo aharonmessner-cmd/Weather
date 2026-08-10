@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../../theme/app_typography.dart';
 import 'degree_glyph.dart';
 
-/// The temperature as the primary typographic object — tall, thin,
+/// The temperature as the primary typographic object — tall, bold,
 /// architectural, un-boxed. This is the hero; nothing else on the Weather
 /// screen should visually compete with it.
 ///
 /// Height comes from three things working together, not one dramatic
-/// trick: a large reference font size, an ultra-light weight with tight
-/// negative letter-spacing, and a modest vertical stretch on top. Pushing
-/// the stretch factor alone to get "tall" reads as distorted text, not
-/// custom typography — so it stays a finishing touch here, not the
-/// mechanism.
+/// trick: a large reference font size, a heavy weight with tight negative
+/// letter-spacing, and a modest vertical stretch on top. Pushing the
+/// stretch factor alone to get "tall" reads as distorted text, not custom
+/// typography — so it stays a finishing touch here, not the mechanism.
+/// The weight is deliberately bold rather than the thin/light styles
+/// typical of this genre of oversized display type — against a bright,
+/// busy sky background a thin stroke loses contrast and presence, so this
+/// leans heavier to stay legible and confident.
 ///
 /// Sizing is a fixed, generous reference size wrapped in a [FittedBox]
 /// rather than a hand-computed "font size as a fraction of width" formula
@@ -65,10 +68,10 @@ class TemperatureHero extends StatelessWidget {
                 textScaler: TextScaler.noScaling,
                 style: TextStyle(
                   fontFamily: AppTypography.fontDisplay,
-                  fontWeight: FontWeight.w100,
+                  fontWeight: FontWeight.w700,
                   fontSize: _referenceFontSize,
                   height: 0.88,
-                  letterSpacing: -_referenceFontSize * 0.035,
+                  letterSpacing: -_referenceFontSize * 0.02,
                   color: contentColor,
                 ),
               ),
