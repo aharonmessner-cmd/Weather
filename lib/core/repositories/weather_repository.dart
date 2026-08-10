@@ -30,15 +30,29 @@ abstract class WeatherRepository {
 }
 
 class NwsWeatherRepository implements WeatherRepository {
-  NwsWeatherRepository({required NwsApiClient client, required WeatherCache cache})
+  NwsWeatherRepository({required NwsApiClient client, required WeatherCache cache, DateTime Function()? now})
       : _client = client,
-        _cache = cache;
+        _cache = cache,
+        _now = now ?? DateTime.now;
 
   final NwsApiClient _client;
   final WeatherCache _cache;
 
+  /// Injectable clock — defaults to the real [DateTime.now], overridable in
+  /// tests so "narrow hourly to what's upcoming" can be tested against a
+  /// fixed, known instant instead of the real wall clock racing a static
+  /// fixture's timestamps.
+  final DateTime Function() _now;
+
   @override
-  Future<WeatherData?> getCached(Location location) => _cache.read(location.id);
+  Future<WeatherData?> getCached(Location location) async {
+    final data = await _cache.read(location.id);
+    if (data == null) return null;
+    // The cached snapshot may be hours old; re-narrow its hourly list to
+    // "still upcoming as of right now" on every read, not just at fetch
+    // time, so a stale cache never shows an already-elapsed hour first.
+    return data.copyWith(hourly: HourlyForecastEntry.upcomingFrom(data.hourly, _now()));
+  }
 
   @override
   Future<WeatherData> fetchAndCache(Location location) async {
@@ -83,10 +97,16 @@ class NwsWeatherRepository implements WeatherRepository {
         today: today,
       ),
       observation: observation,
-      hourly: hourlyForecast.periods.map(HourlyForecastEntry.fromNws).toList(),
+      // Even a fresh NWS response includes the current, already-in-progress
+      // hour as its first period — narrow to genuinely upcoming ones here
+      // too, so "just fetched" and "read from cache" behave identically.
+      hourly: HourlyForecastEntry.upcomingFrom(
+        hourlyForecast.periods.map(HourlyForecastEntry.fromNws).toList(),
+        _now(),
+      ),
       daily: daily,
       alerts: alerts,
-      fetchedAt: DateTime.now(),
+      fetchedAt: _now(),
     );
 
     await _cache.write(location.id, data);

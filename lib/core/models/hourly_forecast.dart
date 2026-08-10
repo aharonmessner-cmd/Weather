@@ -39,6 +39,27 @@ class HourlyForecastEntry extends Equatable {
     );
   }
 
+  /// Narrows to the periods that are still ahead of [now] — the
+  /// currently-in-progress hour (and anything earlier) is dropped, so the
+  /// first entry returned is always the next full upcoming hour, never a
+  /// stale or already-elapsed one.
+  ///
+  /// This is a plain filter, not a resample: it never fabricates a period
+  /// NWS didn't provide, and it doesn't assume the input is exactly
+  /// hourly or already sorted (a defensive sort happens here) — an
+  /// irregular or gappy NWS response still produces a sane, gap-preserving
+  /// result rather than a crash or a fabricated hour.
+  ///
+  /// [DateTime.isAfter] compares the underlying absolute instant, so this
+  /// is correct regardless of what UTC offset [entries] or [now] happen to
+  /// carry — no separate timezone-conversion step is needed for this
+  /// comparison to be correct across timezones or a DST transition.
+  static List<HourlyForecastEntry> upcomingFrom(List<HourlyForecastEntry> entries, DateTime now) {
+    final upcoming = entries.where((e) => e.time.isAfter(now)).toList()
+      ..sort((a, b) => a.time.compareTo(b.time));
+    return upcoming;
+  }
+
   Map<String, dynamic> toJson() => {
         'time': time.toIso8601String(),
         'temperatureFahrenheit': temperatureFahrenheit,

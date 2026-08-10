@@ -12,6 +12,12 @@ import '../../support/fixture.dart';
 
 const _location = Location(id: 'home', name: 'Home', latitude: 38.8894, longitude: -77.0352);
 
+// forecast_hourly.json's periods start at 2026-08-09T13:00:00-04:00 and
+// 14:00:00-04:00; fixing "now" 30 minutes before the first one keeps these
+// tests deterministic (both periods "upcoming") regardless of the real
+// wall-clock date the suite happens to run on.
+DateTime _fixedNow() => DateTime.parse('2026-08-09T12:30:00-04:00');
+
 typedef _Router = Future<http.Response> Function(http.Request request);
 
 http.Client _clientWith(_Router router) => MockClient(router);
@@ -53,6 +59,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(_happyPathRouter)),
         cache: cache,
+        now: _fixedNow,
       );
 
       final data = await repo.fetchAndCache(_location);
@@ -76,6 +83,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith((_) async => http.Response('nope', 404))),
         cache: cache,
+        now: _fixedNow,
       );
 
       await expectLater(repo.fetchAndCache(_location), throwsA(isA<NwsNotFoundException>()));
@@ -93,6 +101,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(router)),
         cache: cache,
+        now: _fixedNow,
       );
 
       await expectLater(repo.fetchAndCache(_location), throwsA(isA<NwsServerException>()));
@@ -110,6 +119,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(router)),
         cache: cache,
+        now: _fixedNow,
       );
 
       final data = await repo.fetchAndCache(_location);
@@ -131,6 +141,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(router)),
         cache: cache,
+        now: _fixedNow,
       );
 
       final data = await repo.fetchAndCache(_location);
@@ -149,6 +160,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(router)),
         cache: cache,
+        now: _fixedNow,
       );
 
       final data = await repo.fetchAndCache(_location);
@@ -166,6 +178,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(router)),
         cache: cache,
+        now: _fixedNow,
       );
 
       await expectLater(repo.fetchAndCache(_location), throwsA(isA<NwsParseException>()));
@@ -178,6 +191,7 @@ void main() {
       final repo = NwsWeatherRepository(
         client: NwsApiClient(httpClient: _clientWith(_happyPathRouter)),
         cache: cache,
+        now: _fixedNow,
       );
 
       expect(await repo.getCached(_location), isNull);
