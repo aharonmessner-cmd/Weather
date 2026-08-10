@@ -11,6 +11,7 @@ import '../../../../widgets/empty_state.dart';
 import '../../../../widgets/error_view.dart';
 import '../../../../widgets/last_updated_label.dart';
 import '../../../../widgets/responsive.dart';
+import '../../../../widgets/responsive_center.dart';
 import '../../../locations/application/locations_controller.dart';
 import '../../application/weather_controller.dart';
 import '../widgets/alerts_section.dart';
@@ -235,9 +236,7 @@ class _CompactLayout extends StatelessWidget {
     );
 
     if (!constrainWidth) return content;
-    return Center(
-      child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 680), child: content),
-    );
+    return ResponsiveCenter(child: content);
   }
 }
 

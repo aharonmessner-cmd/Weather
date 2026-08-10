@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/weather_alert.dart';
+import '../../../widgets/responsive_center.dart';
 import 'alert_style.dart';
 
 /// Full text of a single alert: headline, description, instructions, area,
@@ -19,66 +20,87 @@ class AlertDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(alert.event)),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  severityLabel(alert.severity).toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(alert.event, style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22)),
-                if (alert.headline != null) ...[
-                  const SizedBox(height: 8),
-                  Text(alert.headline!, style: theme.textTheme.bodyLarge),
+      body: ResponsiveCenter(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    severityLabel(alert.severity).toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.event,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontSize: 22,
+                    ),
+                  ),
+                  if (alert.headline != null) ...[
+                    const SizedBox(height: 8),
+                    Text(alert.headline!, style: theme.textTheme.bodyLarge),
+                  ],
                 ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 24,
+              runSpacing: 8,
+              children: [
+                if (alert.effective != null)
+                  _TimingLabel(
+                    label: 'Effective',
+                    value: timeFormat.format(alert.effective!.toLocal()),
+                  ),
+                if (alert.expires != null)
+                  _TimingLabel(
+                    label: 'Expires',
+                    value: timeFormat.format(alert.expires!.toLocal()),
+                  ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 24,
-            runSpacing: 8,
-            children: [
-              if (alert.effective != null) _TimingLabel(label: 'Effective', value: timeFormat.format(alert.effective!.toLocal())),
-              if (alert.expires != null) _TimingLabel(label: 'Expires', value: timeFormat.format(alert.expires!.toLocal())),
+            if (alert.areaDesc != null) ...[
+              const SizedBox(height: 20),
+              Text('Area', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(alert.areaDesc!, style: theme.textTheme.bodyLarge),
             ],
-          ),
-          if (alert.areaDesc != null) ...[
-            const SizedBox(height: 20),
-            Text('Area', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(alert.areaDesc!, style: theme.textTheme.bodyLarge),
+            if (alert.description != null) ...[
+              const SizedBox(height: 20),
+              Text('Details', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(alert.description!, style: theme.textTheme.bodyLarge),
+            ],
+            if (alert.instruction != null) ...[
+              const SizedBox(height: 20),
+              Text('Instructions', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text(alert.instruction!, style: theme.textTheme.bodyLarge),
+            ],
+            if (alert.senderName != null) ...[
+              const SizedBox(height: 24),
+              Text(
+                alert.senderName!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
-          if (alert.description != null) ...[
-            const SizedBox(height: 20),
-            Text('Details', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(alert.description!, style: theme.textTheme.bodyLarge),
-          ],
-          if (alert.instruction != null) ...[
-            const SizedBox(height: 20),
-            Text('Instructions', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(alert.instruction!, style: theme.textTheme.bodyLarge),
-          ],
-          if (alert.senderName != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              alert.senderName!,
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -97,7 +119,12 @@ class _TimingLabel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         Text(value, style: theme.textTheme.bodyLarge),
       ],
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/error_view.dart';
+import '../../../widgets/responsive_center.dart';
 import '../../locations/application/locations_controller.dart';
 import '../../weather/application/weather_controller.dart';
 import 'alert_detail_screen.dart';
@@ -19,7 +20,8 @@ class AlertsScreen extends ConsumerWidget {
       return const EmptyState(
         icon: Icons.location_off_rounded,
         title: 'No Locations Yet',
-        message: 'Add a location from the Locations tab to see its weather alerts.',
+        message:
+            'Add a location from the Locations tab to see its weather alerts.',
       );
     }
 
@@ -33,22 +35,27 @@ class AlertsScreen extends ConsumerWidget {
             return const EmptyState(
               icon: Icons.check_circle_outline_rounded,
               title: 'No Active Alerts',
-              message: 'There are no active National Weather Service alerts for this location.',
+              message:
+                  'There are no active National Weather Service alerts for this location.',
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: data.alerts.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final alert = data.alerts[index];
-              return AlertCard(
-                alert: alert,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => AlertDetailScreen(alert: alert)),
-                ),
-              );
-            },
+          return ResponsiveCenter(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: data.alerts.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final alert = data.alerts[index];
+                return AlertCard(
+                  alert: alert,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AlertDetailScreen(alert: alert),
+                    ),
+                  ),
+                );
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
