@@ -20,6 +20,7 @@ class Observation extends Equatable {
     this.windSpeedMph,
     this.windGustMph,
     this.windDirectionCompass,
+    this.windDirectionDegrees,
     this.pressureInHg,
     this.visibilityMiles,
     this.heatIndexFahrenheit,
@@ -38,6 +39,13 @@ class Observation extends Equatable {
   final double? windSpeedMph;
   final double? windGustMph;
   final String? windDirectionCompass;
+
+  /// Raw wind direction in degrees (0-360, meteorological convention:
+  /// the direction the wind is blowing *from*), kept alongside the
+  /// human-readable [windDirectionCompass] so a compass-needle
+  /// visualization can draw the exact angle rather than just the nearest
+  /// 16-point label.
+  final double? windDirectionDegrees;
   final double? pressureInHg;
   final double? visibilityMiles;
   final double? heatIndexFahrenheit;
@@ -71,6 +79,7 @@ class Observation extends Equatable {
       windGustMph: raw.windGustKmh == null ? null : kmhToMph(raw.windGustKmh!),
       windDirectionCompass:
           raw.windDirectionDegrees == null ? null : degreesToCompass(raw.windDirectionDegrees!),
+      windDirectionDegrees: raw.windDirectionDegrees,
       pressureInHg: raw.barometricPressurePa == null ? null : paToInHg(raw.barometricPressurePa!),
       visibilityMiles: raw.visibilityMeters == null ? null : metersToMiles(raw.visibilityMeters!),
       heatIndexFahrenheit: _c(raw.heatIndexCelsius),
@@ -94,6 +103,7 @@ class Observation extends Equatable {
         'windSpeedMph': windSpeedMph,
         'windGustMph': windGustMph,
         'windDirectionCompass': windDirectionCompass,
+        'windDirectionDegrees': windDirectionDegrees,
         'pressureInHg': pressureInHg,
         'visibilityMiles': visibilityMiles,
         'heatIndexFahrenheit': heatIndexFahrenheit,
@@ -116,6 +126,7 @@ class Observation extends Equatable {
         windSpeedMph: (json['windSpeedMph'] as num?)?.toDouble(),
         windGustMph: (json['windGustMph'] as num?)?.toDouble(),
         windDirectionCompass: json['windDirectionCompass'] as String?,
+        windDirectionDegrees: (json['windDirectionDegrees'] as num?)?.toDouble(),
         pressureInHg: (json['pressureInHg'] as num?)?.toDouble(),
         visibilityMiles: (json['visibilityMiles'] as num?)?.toDouble(),
         heatIndexFahrenheit: (json['heatIndexFahrenheit'] as num?)?.toDouble(),

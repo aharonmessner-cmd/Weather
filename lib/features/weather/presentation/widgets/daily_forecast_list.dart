@@ -1,21 +1,38 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/daily_forecast.dart';
-import '../../../../widgets/weather_icon.dart';
+import '../../../../theme/app_typography.dart';
+import '../../../../theme/glass_style.dart';
+import '../../../../widgets/glass_card.dart';
+import 'weather_glyphs.dart';
 
 /// The multi-day forecast: one row per day with condition, precipitation
 /// chance, and a low/high range bar scaled against the whole visible
-/// forecast (so at a glance you can see which days are hottest/coldest).
+/// forecast, all on a single [GlassCard] sitting on the sky.
 class DailyForecastList extends StatelessWidget {
-  const DailyForecastList({super.key, required this.entries});
+  const DailyForecastList({
+    super.key,
+    required this.entries,
+    required this.contentColor,
+    required this.style,
+  });
 
   final List<DailyForecastEntry> entries;
+  final Color contentColor;
+  final GlassStyle style;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final secondaryColor = contentColor.withValues(alpha: 0.62);
+
     if (entries.isEmpty) {
-      return Text('No daily forecast available.', style: theme.textTheme.bodyMedium);
+      return GlassCard(
+        style: style,
+        child: Text(
+          'No daily forecast available.',
+          style: TextStyle(fontFamily: AppTypography.fontBody, color: secondaryColor),
+        ),
+      );
     }
 
     final highs = entries.map((e) => e.highFahrenheit).whereType<int>();
@@ -23,59 +40,82 @@ class DailyForecastList extends StatelessWidget {
     final overallHigh = highs.isEmpty ? null : highs.reduce((a, b) => a > b ? a : b);
     final overallLow = lows.isEmpty ? null : lows.reduce((a, b) => a < b ? a : b);
 
-    return Column(
-      children: [
-        for (var i = 0; i < entries.length; i++) ...[
-          _DailyRow(entry: entries[i], overallHigh: overallHigh, overallLow: overallLow),
-          if (i != entries.length - 1) const Divider(height: 24),
+    return GlassCard(
+      style: style,
+      child: Column(
+        children: [
+          for (var i = 0; i < entries.length; i++) ...[
+            _DailyRow(
+              entry: entries[i],
+              overallHigh: overallHigh,
+              overallLow: overallLow,
+              contentColor: contentColor,
+            ),
+            if (i != entries.length - 1)
+              Divider(height: 22, color: contentColor.withValues(alpha: 0.12)),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
 class _DailyRow extends StatelessWidget {
-  const _DailyRow({required this.entry, required this.overallHigh, required this.overallLow});
+  const _DailyRow({
+    required this.entry,
+    required this.overallHigh,
+    required this.overallLow,
+    required this.contentColor,
+  });
 
   final DailyForecastEntry entry;
   final int? overallHigh;
   final int? overallLow;
+  final Color contentColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final secondaryColor = contentColor.withValues(alpha: 0.62);
     final precip = entry.precipitationProbabilityPercent ?? 0;
 
     return Row(
       children: [
         SizedBox(
-          width: 88,
-          child: Text(entry.dayName, style: theme.textTheme.bodyLarge, overflow: TextOverflow.ellipsis),
+          width: 84,
+          child: Text(
+            entry.dayName,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 15, fontWeight: FontWeight.w500, color: contentColor),
+          ),
         ),
         SizedBox(
           width: 38,
           child: precip > 0
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.water_drop_rounded, size: 12, color: theme.colorScheme.primary),
-                    const SizedBox(width: 2),
-                    Text(
-                      '$precip%',
-                      style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary),
-                    ),
-                  ],
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.water_drop_rounded, size: 11, color: secondaryColor),
+                      const SizedBox(width: 2),
+                      Text(
+                        '$precip%',
+                        style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 11, color: secondaryColor),
+                      ),
+                    ],
+                  ),
                 )
               : null,
         ),
-        WeatherIcon(condition: entry.condition, size: 24),
+        WeatherGlyph(condition: entry.condition, size: 24),
         const SizedBox(width: 14),
         SizedBox(
           width: 30,
           child: Text(
             entry.lowFahrenheit != null ? '${entry.lowFahrenheit}°' : '--',
             textAlign: TextAlign.end,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(fontFamily: AppTypography.fontDisplay, fontSize: 14, color: secondaryColor),
           ),
         ),
         Expanded(
@@ -84,6 +124,8 @@ class _DailyRow extends StatelessWidget {
             high: entry.highFahrenheit,
             overallLow: overallLow,
             overallHigh: overallHigh,
+            trackColor: contentColor.withValues(alpha: 0.14),
+            fillColor: contentColor,
           ),
         ),
         SizedBox(
@@ -91,7 +133,7 @@ class _DailyRow extends StatelessWidget {
           child: Text(
             entry.highFahrenheit != null ? '${entry.highFahrenheit}°' : '--',
             textAlign: TextAlign.end,
-            style: theme.textTheme.bodyMedium,
+            style: TextStyle(fontFamily: AppTypography.fontDisplay, fontSize: 14, fontWeight: FontWeight.w600, color: contentColor),
           ),
         ),
       ],
@@ -105,22 +147,23 @@ class _RangeBar extends StatelessWidget {
     required this.high,
     required this.overallLow,
     required this.overallHigh,
+    required this.trackColor,
+    required this.fillColor,
   });
 
   final int? low;
   final int? high;
   final int? overallLow;
   final int? overallHigh;
+  final Color trackColor;
+  final Color fillColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final track = theme.colorScheme.surfaceContainerHighest;
-
     if (low == null || high == null || overallLow == null || overallHigh == null || overallHigh == overallLow) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Container(height: 4, decoration: BoxDecoration(color: track, borderRadius: BorderRadius.circular(2))),
+        child: Container(height: 4, decoration: BoxDecoration(color: trackColor, borderRadius: BorderRadius.circular(2))),
       );
     }
 
@@ -137,7 +180,7 @@ class _RangeBar extends StatelessWidget {
           return Stack(
             alignment: Alignment.centerLeft,
             children: [
-              Container(height: 4, decoration: BoxDecoration(color: track, borderRadius: BorderRadius.circular(2))),
+              Container(height: 4, decoration: BoxDecoration(color: trackColor, borderRadius: BorderRadius.circular(2))),
               Positioned(
                 left: width * start,
                 width: fillWidth,
@@ -145,10 +188,7 @@ class _RangeBar extends StatelessWidget {
                   height: 4,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary.withValues(alpha: 0.5),
-                        theme.colorScheme.primary,
-                      ],
+                      colors: [fillColor.withValues(alpha: 0.55), fillColor],
                     ),
                     borderRadius: BorderRadius.circular(2),
                   ),

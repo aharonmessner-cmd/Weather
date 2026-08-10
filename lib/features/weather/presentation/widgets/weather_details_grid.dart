@@ -1,107 +1,159 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/hourly_forecast.dart';
 import '../../../../core/models/observation.dart';
+import '../../../../core/utils/sun_times.dart';
+import '../../../../theme/app_typography.dart';
+import '../../../../theme/glass_style.dart';
+import 'info_metric_card.dart';
+import 'precipitation_sparkline.dart';
+import 'sunrise_arc_card.dart';
+import 'wind_compass_card.dart';
 
-/// The wind/humidity/dew point/visibility/pressure/precipitation grid,
-/// sourced from the latest station [Observation]. Hidden entries (e.g. no
-/// gust data) are simply omitted rather than shown as "--", since NWS
-/// stations frequently don't report every field.
+/// The full weather-details layout: a wind compass and sunrise arc as the
+/// two graphic "hero" cards — the arc fills the grid slot the Figma
+/// reference gave to UV Index, using pure client-side astronomy instead of
+/// adding an external UV API — a precipitation trend when there's a
+/// non-zero chance in the visible hours, then small metric cards
+/// (humidity, dew point, visibility, pressure, gusts, last-hour
+/// precipitation) for everything else. Hidden entries (e.g. no gust data)
+/// are simply omitted, since NWS stations frequently don't report every
+/// field.
 class WeatherDetailsGrid extends StatelessWidget {
-  const WeatherDetailsGrid({super.key, required this.observation});
+  const WeatherDetailsGrid({
+    super.key,
+    required this.observation,
+    required this.contentColor,
+    required this.style,
+    this.hourlyEntries = const [],
+    this.sunTimes,
+    this.now,
+  });
 
   final Observation? observation;
+  final Color contentColor;
+  final GlassStyle style;
+
+  /// Backs [PrecipitationSparkline]; omitted (empty) hides that card.
+  final List<HourlyForecastEntry> hourlyEntries;
+
+  /// Backs [SunriseArcCard]; null hides that card (e.g. no coordinates
+  /// available yet).
+  final SunTimes? sunTimes;
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final obs = observation;
     if (obs == null) {
-      return Text('No current observation available.', style: theme.textTheme.bodyMedium);
+      return Text(
+        'No current observation available.',
+        style: TextStyle(fontFamily: AppTypography.fontBody, color: contentColor.withValues(alpha: 0.62)),
+      );
     }
 
-    final items = <_DetailItem>[
-      _DetailItem(icon: Icons.air_rounded, label: 'Wind', value: _windText(obs)),
+    final metrics = <InfoMetricCard>[
       if (obs.windGustMph != null)
-        _DetailItem(icon: Icons.storm_rounded, label: 'Gusts', value: '${obs.windGustMph!.round()} mph'),
-      _DetailItem(
+        InfoMetricCard(
+          icon: Icons.storm_rounded,
+          label: 'Gusts',
+          value: '${obs.windGustMph!.round()} mph',
+          contentColor: contentColor,
+          style: style,
+        ),
+      InfoMetricCard(
         icon: Icons.water_drop_outlined,
         label: 'Humidity',
         value: obs.humidityPercent != null ? '${obs.humidityPercent!.round()}%' : '--',
+        contentColor: contentColor,
+        style: style,
       ),
-      _DetailItem(
+      InfoMetricCard(
         icon: Icons.thermostat_outlined,
         label: 'Dew Point',
         value: obs.dewPointFahrenheit != null ? '${obs.dewPointFahrenheit!.round()}°' : '--',
+        contentColor: contentColor,
+        style: style,
       ),
-      _DetailItem(
+      InfoMetricCard(
         icon: Icons.visibility_outlined,
         label: 'Visibility',
         value: obs.visibilityMiles != null ? '${obs.visibilityMiles!.toStringAsFixed(1)} mi' : '--',
+        contentColor: contentColor,
+        style: style,
       ),
-      _DetailItem(
+      InfoMetricCard(
         icon: Icons.speed_outlined,
         label: 'Pressure',
         value: obs.pressureInHg != null ? '${obs.pressureInHg!.toStringAsFixed(2)} in' : '--',
+        contentColor: contentColor,
+        style: style,
       ),
       if (obs.precipitationLastHourInches != null)
-        _DetailItem(
+        InfoMetricCard(
           icon: Icons.umbrella_outlined,
           label: 'Last Hour',
           value: '${obs.precipitationLastHourInches!.toStringAsFixed(2)} in',
+          contentColor: contentColor,
+          style: style,
         ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth > 420 ? 3 : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            mainAxisSpacing: 18,
-            crossAxisSpacing: 12,
-            childAspectRatio: 2.8,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) => items[index],
-        );
-      },
-    );
-  }
+    final times = sunTimes;
+    final showPrecip = hourlyEntries.any((e) => (e.precipitationProbabilityPercent ?? 0) > 0);
 
-  static String _windText(Observation obs) {
-    if (obs.windSpeedMph == null) return '--';
-    final direction = obs.windDirectionCompass != null ? '${obs.windDirectionCompass} ' : '';
-    return '$direction${obs.windSpeedMph!.round()} mph';
-  }
-}
-
-class _DetailItem extends StatelessWidget {
-  const _DetailItem({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text(value, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: WindCompassCard(
+                speedMph: obs.windSpeedMph,
+                directionDegrees: obs.windDirectionDegrees,
+                directionCompass: obs.windDirectionCompass,
+                contentColor: contentColor,
+                style: style,
+              ),
+            ),
+            if (times != null) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: SunriseArcCard(
+                  sunTimes: times,
+                  now: now ?? DateTime.now(),
+                  contentColor: contentColor,
+                  style: style,
+                ),
+              ),
             ],
-          ),
+          ],
         ),
+        if (showPrecip) ...[
+          const SizedBox(height: 12),
+          PrecipitationSparkline(entries: hourlyEntries, contentColor: contentColor, style: style),
+        ],
+        if (metrics.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth > 420 ? 3 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 2.6,
+                ),
+                itemCount: metrics.length,
+                itemBuilder: (context, index) => metrics[index],
+              );
+            },
+          ),
+        ],
       ],
     );
   }

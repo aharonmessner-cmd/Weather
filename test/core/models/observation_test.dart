@@ -14,6 +14,7 @@ void main() {
       expect(obs.windSpeedMph, closeTo(9.2, 0.05));
       expect(obs.visibilityMiles, closeTo(10.0, 0.05));
       expect(obs.windDirectionCompass, 'SSW');
+      expect(obs.windDirectionDegrees, closeTo(210, 0.01));
       expect(obs.stationId, 'KDCA');
     });
 
@@ -47,6 +48,7 @@ void main() {
       expect(obs.temperatureFahrenheit, isNull);
       expect(obs.feelsLikeFahrenheit, isNull);
       expect(obs.windDirectionCompass, isNull);
+      expect(obs.windDirectionDegrees, isNull);
     });
   });
 
@@ -61,6 +63,7 @@ void main() {
       expect(roundTripped.stationId, obs.stationId);
       expect(roundTripped.condition, obs.condition);
       expect(roundTripped.observedAt, obs.observedAt);
+      expect(roundTripped.windDirectionDegrees, obs.windDirectionDegrees);
     });
   });
 }

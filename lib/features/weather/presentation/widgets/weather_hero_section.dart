@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/current_conditions.dart';
 import '../../../../environment/weather_environment.dart';
 import '../../../../theme/app_typography.dart';
-import '../../../../widgets/weather_icon.dart';
 import 'temperature_hero.dart';
+import 'weather_glyphs.dart';
 
 /// The Weather tab's hero: location, temperature, condition, H/L — sitting
 /// directly on the [WeatherEnvironment] with no card around it. Reads its
@@ -67,9 +67,7 @@ class WeatherHeroSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Placeholder condition icon — swapped for the custom glyph
-              // set in Stage 3 (weather_glyphs.dart).
-              WeatherIcon(condition: current.condition, isDaytime: current.isDaytime ?? true, size: 18, color: secondaryColor),
+              WeatherGlyph(condition: current.condition, isDaytime: current.isDaytime ?? true, size: 22, color: secondaryColor),
               const SizedBox(width: 6),
               if (current.conditionText != null)
                 Text(

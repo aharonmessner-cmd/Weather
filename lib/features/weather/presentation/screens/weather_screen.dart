@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/app_shell.dart';
 import '../../../../core/models/location.dart';
 import '../../../../core/models/weather_data.dart';
+import '../../../../core/utils/sun_times.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/glass_style.dart';
 import '../../../../widgets/empty_state.dart';
 import '../../../../widgets/error_view.dart';
 import '../../../../widgets/responsive.dart';
@@ -15,6 +18,13 @@ import '../widgets/current_conditions_card.dart';
 import '../widgets/daily_forecast_list.dart';
 import '../widgets/hourly_forecast_list.dart';
 import '../widgets/weather_details_grid.dart';
+
+// TODO(stage-4): this screen still predates the WeatherEnvironment
+// integration — it renders the reskinned Stage 3 components in a flat
+// "chrome" glass style (no sky behind them yet) purely so the app keeps
+// compiling and running between stages. Stage 4 replaces this whole file.
+GlassStyle _bridgeGlassStyle(BuildContext context) =>
+    GlassStyle.chrome(Theme.of(context).brightness == Brightness.dark ? AppColors.dark : AppColors.light);
 
 class WeatherScreen extends ConsumerWidget {
   const WeatherScreen({super.key});
@@ -102,16 +112,41 @@ class _CompactLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contentColor = Theme.of(context).colorScheme.onSurface;
+    final style = _bridgeGlassStyle(context);
+    final now = DateTime.now();
+    final sunTimes = computeSunTimes(
+      latitude: data.location.latitude,
+      longitude: data.location.longitude,
+      date: now,
+    );
+
     final content = ListView(
       padding: const EdgeInsets.all(16),
       children: [
         CurrentConditionsCard(data: data),
         const SizedBox(height: 16),
-        SectionCard(title: 'Hourly Forecast', child: HourlyForecastList(entries: data.hourly)),
+        SectionCard(
+          title: 'Hourly Forecast',
+          child: HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style),
+        ),
         const SizedBox(height: 16),
-        SectionCard(title: 'Forecast', child: DailyForecastList(entries: data.daily)),
+        SectionCard(
+          title: 'Forecast',
+          child: DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
+        ),
         const SizedBox(height: 16),
-        SectionCard(title: 'Details', child: WeatherDetailsGrid(observation: data.observation)),
+        SectionCard(
+          title: 'Details',
+          child: WeatherDetailsGrid(
+            observation: data.observation,
+            hourlyEntries: data.hourly,
+            sunTimes: sunTimes,
+            now: now,
+            contentColor: contentColor,
+            style: style,
+          ),
+        ),
         const SizedBox(height: 16),
         AlertsSection(alerts: data.alerts),
       ],
@@ -131,6 +166,15 @@ class _DesktopLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contentColor = Theme.of(context).colorScheme.onSurface;
+    final style = _bridgeGlassStyle(context);
+    final now = DateTime.now();
+    final sunTimes = computeSunTimes(
+      latitude: data.location.latitude,
+      longitude: data.location.longitude,
+      date: now,
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -150,7 +194,7 @@ class _DesktopLayout extends StatelessWidget {
                   Expanded(
                     child: SectionCard(
                       title: 'Hourly Forecast',
-                      child: HourlyForecastList(entries: data.hourly),
+                      child: HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style),
                     ),
                   ),
                 ],
@@ -160,13 +204,23 @@ class _DesktopLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: SectionCard(title: 'Forecast', child: DailyForecastList(entries: data.daily)),
+                    child: SectionCard(
+                      title: 'Forecast',
+                      child: DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
+                    ),
                   ),
                   const SizedBox(width: 20),
                   Expanded(
                     child: SectionCard(
                       title: 'Details',
-                      child: WeatherDetailsGrid(observation: data.observation),
+                      child: WeatherDetailsGrid(
+                        observation: data.observation,
+                        hourlyEntries: data.hourly,
+                        sunTimes: sunTimes,
+                        now: now,
+                        contentColor: contentColor,
+                        style: style,
+                      ),
                     ),
                   ),
                 ],
