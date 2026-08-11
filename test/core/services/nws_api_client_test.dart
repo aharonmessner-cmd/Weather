@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:weather/core/app_contact.dart';
 import 'package:weather/core/services/nws/nws_api_client.dart';
 import 'package:weather/core/services/nws/nws_config.dart';
 import 'package:weather/core/services/nws/nws_exceptions.dart';
@@ -156,7 +157,7 @@ void main() {
       await client.getForecast('https://api.weather.gov/x');
 
       final combined = logs.join('\n');
-      expect(combined, isNot(contains(NwsConfig.contactEmail)));
+      expect(combined, isNot(contains(AppContact.contactEmail)));
       expect(combined.toLowerCase(), isNot(contains('user-agent')));
     });
 

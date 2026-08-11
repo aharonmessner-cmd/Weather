@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart' show kReleaseMode;
 
+import '../../app_contact.dart';
+
 /// Static configuration for talking to api.weather.gov.
 ///
 /// NWS asks every client to identify itself with a descriptive User-Agent
 /// containing a way to contact the developer, so they can reach out before
 /// blocking abusive traffic. This is a small private app, so a name + email
-/// is sufficient. Update [contactEmail] if this app changes hands.
+/// is sufficient. Update [AppContact] if this app changes hands.
 ///
 /// NWS's own guidance is a User-Agent shaped like
 /// `(app-identifier, contact-info)` — see
@@ -15,10 +17,7 @@ class NwsConfig {
 
   static const String baseUrl = 'https://api.weather.gov';
 
-  static const String appName = 'PersonalWeatherApp';
-  static const String contactEmail = 'chatty870@gmail.com';
-
-  static const String userAgent = '($appName, $contactEmail)';
+  static const String userAgent = '(${AppContact.appName}, ${AppContact.contactEmail})';
 
   static const Duration requestTimeout = Duration(seconds: 15);
 

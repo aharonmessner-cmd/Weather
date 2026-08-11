@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/repositories/weather_repository.dart';
 import '../core/services/cache/weather_cache.dart';
+import '../core/services/geocoding/nominatim_geocoding_client.dart';
+import '../core/services/location/device_location_service.dart';
+import '../core/services/location/location_naming_service.dart';
 import '../core/services/location/location_store.dart';
 import '../core/services/nws/nws_api_client.dart';
 
@@ -32,4 +35,21 @@ final weatherRepositoryProvider = Provider<WeatherRepository>((ref) {
     client: ref.watch(nwsApiClientProvider),
     cache: ref.watch(weatherCacheProvider),
   );
+});
+
+final deviceLocationServiceProvider = Provider<DeviceLocationService>((ref) {
+  return DeviceLocationService();
+});
+
+/// Resolves a display name for raw coordinates via NWS `/points` — reuses
+/// the same [NwsApiClient] the weather pipeline already depends on, rather
+/// than a second geocoding lookup just for "Use My Location" naming.
+final locationNamingServiceProvider = Provider<LocationNamingService>((ref) {
+  return LocationNamingService(ref.watch(nwsApiClientProvider));
+});
+
+final geocodingClientProvider = Provider<NominatimGeocodingClient>((ref) {
+  final client = NominatimGeocodingClient();
+  ref.onDispose(client.close);
+  return client;
 });

@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/location.dart';
 import '../../application/locations_controller.dart';
 
-/// Add/edit form for a saved [Location]. NWS resolves weather purely from
-/// coordinates, so latitude/longitude are the only fields that matter
-/// functionally — address/description are freeform labels for the user's
-/// own reference and are never geocoded or sent anywhere.
+/// A minus sign or a digit or a decimal point — nothing else. Paired with
+/// [TextInputType.text] (see the coordinate fields below) rather than
+/// `TextInputType.numberWithOptions(signed: true)`: several common Android
+/// keyboards ignore the `signed` request and never show a minus key at
+/// all, which made negative longitudes (i.e. anywhere in the US) difficult
+/// or impossible to type. The plain text keyboard always has one.
+final _coordinateInputFormatter = FilteringTextInputFormatter.allow(RegExp(r'[-\d.]'));
+
+/// Advanced/manual add-or-edit form for a saved [Location], entered
+/// directly by latitude/longitude. This is the power-user path — normal
+/// location entry is "Use My Location" or search, via the entry-point
+/// chooser sheet — but it's also the only path for *editing* an
+/// already-saved location's coordinates, where entering exact numbers is
+/// the point.
+///
+/// NWS resolves weather purely from coordinates, so latitude/longitude are
+/// the only fields that matter functionally — address/description are
+/// freeform labels for the user's own reference and are never geocoded or
+/// sent anywhere.
 class LocationEditorSheet extends ConsumerStatefulWidget {
   const LocationEditorSheet({super.key, this.existing});
 
@@ -52,9 +68,18 @@ class _LocationEditorSheetState extends ConsumerState<LocationEditorSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Edit Location' : 'New Location',
+                  isEditing ? 'Edit Location' : 'Advanced: Enter Coordinates',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 22),
                 ),
+                if (!isEditing) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'For exact coordinates. Most people should use Search or Use My Location instead.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _nameController,
@@ -68,8 +93,9 @@ class _LocationEditorSheetState extends ConsumerState<LocationEditorSheet> {
                     Expanded(
                       child: TextFormField(
                         controller: _latController,
-                        decoration: const InputDecoration(labelText: 'Latitude'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        decoration: const InputDecoration(labelText: 'Latitude', hintText: 'e.g. 38.8894'),
+                        keyboardType: TextInputType.text,
+                        inputFormatters: [_coordinateInputFormatter],
                         validator: (value) => _validateCoordinate(value, min: -90, max: 90),
                       ),
                     ),
@@ -77,8 +103,9 @@ class _LocationEditorSheetState extends ConsumerState<LocationEditorSheet> {
                     Expanded(
                       child: TextFormField(
                         controller: _lonController,
-                        decoration: const InputDecoration(labelText: 'Longitude'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        decoration: const InputDecoration(labelText: 'Longitude', hintText: 'e.g. -77.0352'),
+                        keyboardType: TextInputType.text,
+                        inputFormatters: [_coordinateInputFormatter],
                         validator: (value) => _validateCoordinate(value, min: -180, max: 180),
                       ),
                     ),
@@ -147,26 +174,31 @@ class _LocationEditorSheetState extends ConsumerState<LocationEditorSheet> {
 
     final controller = ref.read(locationsControllerProvider.notifier);
     final existing = widget.existing;
-    if (existing == null) {
-      await controller.add(
-        name: name,
-        latitude: latitude,
-        longitude: longitude,
-        address: address.isEmpty ? null : address,
-        description: description.isEmpty ? null : description,
-        isFavorite: _isFavorite,
-      );
-    } else {
-      await controller.update(existing.copyWith(
-        name: name,
-        latitude: latitude,
-        longitude: longitude,
-        address: address.isEmpty ? null : address,
-        description: description.isEmpty ? null : description,
-        isFavorite: _isFavorite,
-      ));
-    }
+    final result = existing == null
+        ? await controller.add(
+            name: name,
+            latitude: latitude,
+            longitude: longitude,
+            address: address.isEmpty ? null : address,
+            description: description.isEmpty ? null : description,
+            isFavorite: _isFavorite,
+          )
+        : await controller.update(existing.copyWith(
+            name: name,
+            latitude: latitude,
+            longitude: longitude,
+            address: address.isEmpty ? null : address,
+            description: description.isEmpty ? null : description,
+            isFavorite: _isFavorite,
+          ));
 
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    if (result.wasDuplicate) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('You already have a saved location within 1 km of this — kept "${result.location.name}".')),
+      );
+    }
   }
 }

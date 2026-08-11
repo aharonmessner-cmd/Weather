@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme_controller.dart';
-import '../../../core/services/nws/nws_config.dart';
+import '../../../core/app_contact.dart';
 import '../../../widgets/responsive_center.dart';
 
 /// Deliberately minimal for V1: appearance and app/data attribution. Units,
@@ -75,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${NwsConfig.appName} · a private weather app for personal use.',
+                      '${AppContact.appName} · a private weather app for personal use.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

@@ -24,59 +24,105 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) {
   );
 }
 
+/// Opens the add-location flow via the FAB chooser and drills into the
+/// Advanced coordinate form — the path exercised by most of these tests,
+/// since they're really testing the form/validation, not the chooser.
+Future<void> _openAdvancedFormViaFab(WidgetTester tester) async {
+  await tester.tap(find.byType(FloatingActionButton));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Advanced: Enter Coordinates'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('empty state shows a CTA that opens the add-location editor', (tester) async {
+  testWidgets('empty state offers Use My Location and Search prominently, with manual entry as a fallback', (tester) async {
     final container = await _containerWithPrefs();
     addTearDown(container.dispose);
     await _pump(tester, container);
 
-    expect(find.text('No Locations Yet'), findsOneWidget);
+    expect(find.text('Where should we get your weather?'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Use My Location'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Search for a Location'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsNothing);
 
-    await tester.tap(find.text('Add a Location'));
+    await tester.tap(find.text('Enter coordinates manually'));
     await tester.pumpAndSettle();
 
-    expect(find.text('New Location'), findsOneWidget);
+    expect(find.text('Advanced: Enter Coordinates'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Add Location'), findsOneWidget);
   });
 
-  group('adding a location', () {
+  group('adding a location via Advanced coordinates', () {
     testWidgets('validates empty name and out-of-range coordinates', (tester) async {
       final container = await _containerWithPrefs();
       addTearDown(container.dispose);
+      await container.read(locationsControllerProvider.notifier).add(
+            name: 'Washington, DC',
+            latitude: 38.8894,
+            longitude: -77.0352,
+          );
       await _pump(tester, container);
 
-      await tester.tap(find.text('Add a Location'));
-      await tester.pumpAndSettle();
+      await _openAdvancedFormViaFab(tester);
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Latitude'), '999');
       await tester.enterText(find.widgetWithText(TextFormField, 'Longitude'), '0');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Add Location'));
       await tester.tap(find.widgetWithText(FilledButton, 'Add Location'));
       await tester.pumpAndSettle();
 
       expect(find.text('Enter a name'), findsOneWidget);
       expect(find.text('Must be between -90.0 and 90.0'), findsOneWidget);
       // The sheet stays open since validation failed.
-      expect(find.text('New Location'), findsOneWidget);
+      expect(find.text('Advanced: Enter Coordinates'), findsOneWidget);
     });
 
     testWidgets('a valid submission adds the location and closes the sheet', (tester) async {
       final container = await _containerWithPrefs();
       addTearDown(container.dispose);
+      await container.read(locationsControllerProvider.notifier).add(
+            name: 'Washington, DC',
+            latitude: 38.8894,
+            longitude: -77.0352,
+          );
       await _pump(tester, container);
 
-      await tester.tap(find.text('Add a Location'));
-      await tester.pumpAndSettle();
+      await _openAdvancedFormViaFab(tester);
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Camp Runamuck');
       await tester.enterText(find.widgetWithText(TextFormField, 'Latitude'), '44.2');
       await tester.enterText(find.widgetWithText(TextFormField, 'Longitude'), '-71.5');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Add Location'));
       await tester.tap(find.widgetWithText(FilledButton, 'Add Location'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New Location'), findsNothing);
+      expect(find.text('Advanced: Enter Coordinates'), findsNothing);
       expect(find.text('Camp Runamuck'), findsOneWidget);
+      expect(container.read(locationsControllerProvider), hasLength(2));
+    });
+
+    testWidgets('a near-duplicate coordinate does not create a second entry, and says so', (tester) async {
+      final container = await _containerWithPrefs();
+      addTearDown(container.dispose);
+      await container.read(locationsControllerProvider.notifier).add(
+            name: 'Washington, DC',
+            latitude: 38.8894,
+            longitude: -77.0352,
+          );
+      await _pump(tester, container);
+
+      await _openAdvancedFormViaFab(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'DC Again');
+      // A few hundred meters away — inside the duplicate tolerance.
+      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude'), '38.8900');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude'), '-77.0360');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Add Location'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Add Location'));
+      await tester.pumpAndSettle();
+
       expect(container.read(locationsControllerProvider), hasLength(1));
+      expect(find.textContaining('already have a saved location'), findsOneWidget);
     });
   });
 
@@ -152,7 +198,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(container.read(locationsControllerProvider), isEmpty);
-      expect(find.text('No Locations Yet'), findsOneWidget);
+      expect(find.text('Where should we get your weather?'), findsOneWidget);
     });
   });
 

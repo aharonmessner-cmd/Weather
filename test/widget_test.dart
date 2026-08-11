@@ -51,8 +51,8 @@ void main() {
     await tester.tap(find.text('Locations'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No Locations Yet'), findsOneWidget);
-    expect(find.text('Add a place — like Home, School, or Camp — to start seeing its weather.'), findsOneWidget);
+    expect(find.text('Where should we get your weather?'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Use My Location'), findsOneWidget);
   });
 
   testWidgets('uses a navigation rail on wide surfaces instead of a bottom bar', (tester) async {
@@ -71,15 +71,18 @@ void main() {
     await pumpApp(tester);
 
     // The Weather tab's empty state only navigates to Locations; the actual
-    // "add" action lives on that tab.
+    // "add" action lives on that tab. Manual coordinate entry is now the
+    // "Advanced" path off the onboarding view rather than the first thing
+    // shown.
     await tester.tap(find.text('Go to Locations'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add a Location'));
+    await tester.tap(find.text('Enter coordinates manually'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Home');
     await tester.enterText(find.widgetWithText(TextFormField, 'Latitude'), '38.8894');
     await tester.enterText(find.widgetWithText(TextFormField, 'Longitude'), '-77.0352');
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Add Location'));
     await tester.tap(find.text('Add Location'));
     await tester.pumpAndSettle();
 

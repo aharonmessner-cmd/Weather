@@ -1,4 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declared here (not only in the debug/profile-only manifests Flutter
+         generates) so the app can reach api.weather.gov and Nominatim in a
+         release build too — the debug/profile copies only cover local
+         development (hot reload, the VM service) and are never merged into
+         release. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- For "Use My Location": FINE for the best available fix, COARSE as a
+         fallback the OS can still grant if the user only allows approximate
+         location — either is enough for weather, which doesn't need
+         street-level precision. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="weather"
         android:name="${applicationName}"

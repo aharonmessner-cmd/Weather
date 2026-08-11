@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/location.dart';
-import '../../../widgets/empty_state.dart';
 import '../../../widgets/responsive_center.dart';
+import '../application/current_location_controller.dart';
 import '../application/locations_controller.dart';
 import 'widgets/location_editor_sheet.dart';
+import 'widgets/location_entry_sheet.dart';
+import 'widgets/location_onboarding.dart';
+import 'widgets/location_search_sheet.dart';
 import 'widgets/location_tile.dart';
 
 class LocationsScreen extends ConsumerWidget {
@@ -16,20 +19,26 @@ class LocationsScreen extends ConsumerWidget {
     final locations = ref.watch(locationsControllerProvider);
     final selected = ref.watch(selectedLocationProvider);
 
+    // Single place to confirm a "Use My Location" success, regardless of
+    // whether it was triggered from the empty-state onboarding view below
+    // or from the add-location sheet (which handles closing itself).
+    ref.listen(currentLocationControllerProvider, (previous, next) {
+      if (next is! CurrentLocationSucceeded) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            next.wasDuplicate
+                ? 'You already have ${next.location.name} saved — selected it.'
+                : 'Added ${next.location.name}.',
+          ),
+        ),
+      );
+    });
+
     return Scaffold(
       appBar: AppBar(title: const Text('Locations')),
       body: locations.isEmpty
-          ? EmptyState(
-              icon: Icons.location_off_outlined,
-              title: 'No Locations Yet',
-              message:
-                  'Add a place — like Home, School, or Camp — to start seeing its weather.',
-              action: FilledButton.icon(
-                onPressed: () => _openEditor(context),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add a Location'),
-              ),
-            )
+          ? const LocationOnboarding()
           : ResponsiveCenter(
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
@@ -55,10 +64,33 @@ class LocationsScreen extends ConsumerWidget {
       floatingActionButton: locations.isEmpty
           ? null
           : FloatingActionButton(
-              onPressed: () => _openEditor(context),
+              onPressed: () => _openEntrySheet(context),
               child: const Icon(Icons.add_rounded),
             ),
     );
+  }
+
+  Future<void> _openEntrySheet(BuildContext context) async {
+    final choice = await showModalBottomSheet<LocationEntryChoice>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (_) => const LocationEntrySheet(),
+    );
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case LocationEntryChoice.search:
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          constraints: const BoxConstraints(maxWidth: 480),
+          builder: (_) => const LocationSearchSheet(),
+        );
+      case LocationEntryChoice.advanced:
+        await _openEditor(context);
+    }
   }
 
   Future<void> _openEditor(BuildContext context, {Location? existing}) {
