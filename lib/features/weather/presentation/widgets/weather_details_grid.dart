@@ -28,6 +28,7 @@ class WeatherDetailsGrid extends StatelessWidget {
     this.hourlyEntries = const [],
     this.sunTimes,
     this.now,
+    this.timeZone,
   });
 
   final Observation? observation;
@@ -41,6 +42,11 @@ class WeatherDetailsGrid extends StatelessWidget {
   /// available yet).
   final SunTimes? sunTimes;
   final DateTime? now;
+
+  /// The location's IANA time zone, forwarded to [SunriseArcCard] and
+  /// [PrecipitationSparkline] so their clock labels match the location,
+  /// not the device.
+  final String? timeZone;
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +131,7 @@ class WeatherDetailsGrid extends StatelessWidget {
                   now: now ?? DateTime.now(),
                   contentColor: contentColor,
                   style: style,
+                  timeZone: timeZone,
                 ),
               ),
             ],
@@ -132,7 +139,7 @@ class WeatherDetailsGrid extends StatelessWidget {
         ),
         if (showPrecip) ...[
           const SizedBox(height: 12),
-          PrecipitationSparkline(entries: hourlyEntries, contentColor: contentColor, style: style),
+          PrecipitationSparkline(entries: hourlyEntries, contentColor: contentColor, style: style, timeZone: timeZone),
         ],
         if (metrics.isNotEmpty) ...[
           const SizedBox(height: 12),

@@ -23,6 +23,13 @@ import 'minutecast_timeline_painter.dart';
 /// Never shows an error state: [MinuteCastUnavailable] (for any reason)
 /// and any unexpected [AsyncError] both render nothing, so a MinuteCast
 /// failure can never turn the weather screen into an error screen.
+///
+/// Also renders nothing when [summarizeMinuteCast] finds no meaningful
+/// precipitation at or after "now" within the data's own window (i.e.
+/// [MinuteCastState.dry]) — MinuteCast is specifically a "what's
+/// happening / about to happen right now" feature, not a general
+/// forecast card, so a dry next hour means the section simply doesn't
+/// exist on screen (no "no rain expected" placeholder).
 class MinuteCastSection extends ConsumerStatefulWidget {
   const MinuteCastSection({
     super.key,
@@ -69,11 +76,20 @@ class _MinuteCastSectionState extends ConsumerState<MinuteCastSection> {
           MinuteCastStale(:final data) => data,
           MinuteCastUnavailable() => null,
         };
-        if (data == null) return const SizedBox.shrink();
+        if (data == null || data.minutes.isEmpty) return const SizedBox.shrink();
+
+        final now = DateTime.now();
+        final summary = summarizeMinuteCast(data.minutes, now, timeZone: widget.timeZone);
+        // No precipitation crossing the threshold anywhere in the data's
+        // upcoming window -- MinuteCast is a "happening now / about to
+        // happen" feature, not a general forecast, so it simply isn't on
+        // screen for a dry hour.
+        if (summary.state == MinuteCastState.dry) return const SizedBox.shrink();
 
         return _Card(
           minutes: data.minutes,
-          now: DateTime.now(),
+          summary: summary,
+          now: now,
           timeZone: widget.timeZone,
           contentColor: widget.contentColor,
           style: widget.style,
@@ -89,6 +105,7 @@ class _MinuteCastSectionState extends ConsumerState<MinuteCastSection> {
 class _Card extends StatelessWidget {
   const _Card({
     required this.minutes,
+    required this.summary,
     required this.now,
     required this.timeZone,
     required this.contentColor,
@@ -97,6 +114,7 @@ class _Card extends StatelessWidget {
   });
 
   final List<MinutePrecipitationForecast> minutes;
+  final MinuteCastSummary summary;
   final DateTime now;
   final String? timeZone;
   final Color contentColor;
@@ -105,10 +123,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (minutes.isEmpty) return const SizedBox.shrink();
-
     final secondaryColor = contentColor.withValues(alpha: 0.62);
-    final summary = summarizeMinuteCast(minutes, now, timeZone: timeZone);
 
     return GlassCard(
       style: style,

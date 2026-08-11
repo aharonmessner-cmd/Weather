@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/hourly_forecast.dart';
+import '../../../../core/utils/location_time.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../theme/glass_style.dart';
 import '../../../../widgets/glass_card.dart';
@@ -17,12 +18,17 @@ class PrecipitationSparkline extends StatelessWidget {
     required this.contentColor,
     required this.style,
     this.hoursShown = 12,
+    this.timeZone,
   });
 
   final List<HourlyForecastEntry> entries;
   final Color contentColor;
   final GlassStyle style;
   final int hoursShown;
+
+  /// The location's IANA time zone (e.g. `"America/New_York"`); null falls
+  /// back to the device's local time zone.
+  final String? timeZone;
 
   bool get hasSignal => entries
       .take(hoursShown)
@@ -72,22 +78,16 @@ class PrecipitationSparkline extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               if (visible.isNotEmpty)
-                Text(_formatHour(visible.first.time),
+                Text(formatClockHour(visible.first.time, timeZone),
                     style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 11, color: secondaryColor)),
               if (visible.length > 1)
-                Text(_formatHour(visible.last.time),
+                Text(formatClockHour(visible.last.time, timeZone),
                     style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 11, color: secondaryColor)),
             ],
           ),
         ],
       ),
     );
-  }
-
-  static String _formatHour(DateTime time) {
-    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-    final suffix = time.hour < 12 ? 'AM' : 'PM';
-    return '$hour$suffix';
   }
 }
 

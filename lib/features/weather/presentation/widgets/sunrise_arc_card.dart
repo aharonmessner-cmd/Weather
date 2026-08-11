@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/location_time.dart';
 import '../../../../core/utils/sun_times.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../theme/glass_style.dart';
@@ -19,12 +20,17 @@ class SunriseArcCard extends StatelessWidget {
     required this.now,
     required this.contentColor,
     required this.style,
+    this.timeZone,
   });
 
   final SunTimes sunTimes;
   final DateTime now;
   final Color contentColor;
   final GlassStyle style;
+
+  /// The location's IANA time zone (e.g. `"America/New_York"`); null falls
+  /// back to the device's local time zone.
+  final String? timeZone;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +80,13 @@ class SunriseArcCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _TimeLabel(label: 'Rise', time: sunrise, color: contentColor, secondaryColor: secondaryColor),
+                child: _TimeLabel(
+                  label: 'Rise',
+                  time: sunrise,
+                  color: contentColor,
+                  secondaryColor: secondaryColor,
+                  timeZone: timeZone,
+                ),
               ),
               Expanded(
                 child: _TimeLabel(
@@ -83,6 +95,7 @@ class SunriseArcCard extends StatelessWidget {
                   color: contentColor,
                   secondaryColor: secondaryColor,
                   alignEnd: true,
+                  timeZone: timeZone,
                 ),
               ),
             ],
@@ -100,6 +113,7 @@ class _TimeLabel extends StatelessWidget {
     required this.color,
     required this.secondaryColor,
     this.alignEnd = false,
+    this.timeZone,
   });
 
   final String label;
@@ -107,6 +121,7 @@ class _TimeLabel extends StatelessWidget {
   final Color color;
   final Color secondaryColor;
   final bool alignEnd;
+  final String? timeZone;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +137,7 @@ class _TimeLabel extends StatelessWidget {
           fit: BoxFit.scaleDown,
           alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
           child: Text(
-            time != null ? _formatTime(time!.toLocal()) : '--',
+            time != null ? formatClockTime(time!, timeZone) : '--',
             style: TextStyle(
               fontFamily: AppTypography.fontDisplay,
               fontSize: 15,
@@ -133,13 +148,6 @@ class _TimeLabel extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  static String _formatTime(DateTime time) {
-    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final suffix = time.hour < 12 ? 'AM' : 'PM';
-    return '$hour:$minute $suffix';
   }
 }
 

@@ -191,5 +191,82 @@ void main() {
     test('returns an empty list for empty input', () {
       expect(HourlyForecastEntry.upcomingFrom(const [], DateTime.now()), isEmpty);
     });
+
+    // The exact fixed-clock scenario from the hourly-forecast bug report:
+    // periods on the hour from 10:00 to 14:00, "now" walked minute by
+    // minute across the 10:00-11:00 and 11:00-12:00 boundaries. The
+    // result must always begin at the next full hour at or after "now" —
+    // never skip ahead to 13:00/14:00.
+    group('fixed-clock boundary walk (10:00-14:00 periods)', () {
+      List<HourlyForecastEntry> fixedEntries() => [
+            _entry('2026-08-11T10:00:00-04:00'),
+            _entry('2026-08-11T11:00:00-04:00'),
+            _entry('2026-08-11T12:00:00-04:00'),
+            _entry('2026-08-11T13:00:00-04:00'),
+            _entry('2026-08-11T14:00:00-04:00'),
+          ];
+
+      test('10:01 -> next is 11:00', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T10:01:00-04:00'));
+        expect(result.first.time, DateTime.parse('2026-08-11T11:00:00-04:00'));
+      });
+
+      test('10:38 -> next is 11:00, never 13:00 or 14:00', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T10:38:00-04:00'));
+        expect(result.first.time, DateTime.parse('2026-08-11T11:00:00-04:00'));
+        expect(result.map((e) => e.time), [
+          DateTime.parse('2026-08-11T11:00:00-04:00'),
+          DateTime.parse('2026-08-11T12:00:00-04:00'),
+          DateTime.parse('2026-08-11T13:00:00-04:00'),
+          DateTime.parse('2026-08-11T14:00:00-04:00'),
+        ]);
+      });
+
+      test('10:59 -> next is 11:00', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T10:59:00-04:00'));
+        expect(result.first.time, DateTime.parse('2026-08-11T11:00:00-04:00'));
+      });
+
+      test('exactly 11:00 -> the in-progress 11:00 period is excluded; next is 12:00 (documented semantics)', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T11:00:00-04:00'));
+        expect(result.first.time, DateTime.parse('2026-08-11T12:00:00-04:00'));
+      });
+
+      test('11:01 -> next is 12:00', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T11:01:00-04:00'));
+        expect(result.first.time, DateTime.parse('2026-08-11T12:00:00-04:00'));
+      });
+
+      test('consecutive results are exactly one hour apart', () {
+        final result = HourlyForecastEntry.upcomingFrom(fixedEntries(), DateTime.parse('2026-08-11T10:38:00-04:00'));
+        for (var i = 1; i < result.length; i++) {
+          expect(result[i].time.difference(result[i - 1].time), const Duration(hours: 1));
+        }
+      });
+    });
+
+    test('cached vs freshly fetched: a JSON round trip selects the identical upcoming list', () {
+      final fresh = [
+        _entry('2026-08-11T10:00:00-04:00', temperatureFahrenheit: 78),
+        _entry('2026-08-11T11:00:00-04:00', temperatureFahrenheit: 80),
+        _entry('2026-08-11T12:00:00-04:00', temperatureFahrenheit: 82),
+      ];
+      // Simulates what actually happens to a cached snapshot: each entry
+      // is serialized (toJson -> toIso8601String, which emits "Z" because
+      // NWS's offset strings parse to a UTC-flagged DateTime) and parsed
+      // back on the next read, exactly as WeatherCache does.
+      final roundTripped = fresh
+          .map((e) => HourlyForecastEntry.tryFromJson(e.toJson()))
+          .whereType<HourlyForecastEntry>()
+          .toList();
+
+      final now = DateTime.parse('2026-08-11T10:38:00-04:00');
+      final freshResult = HourlyForecastEntry.upcomingFrom(fresh, now);
+      final cachedResult = HourlyForecastEntry.upcomingFrom(roundTripped, now);
+
+      expect(cachedResult.map((e) => e.time), freshResult.map((e) => e.time));
+      expect(cachedResult.map((e) => e.temperatureFahrenheit), freshResult.map((e) => e.temperatureFahrenheit));
+      expect(cachedResult.first.time, DateTime.parse('2026-08-11T11:00:00-04:00'));
+    });
   });
 }

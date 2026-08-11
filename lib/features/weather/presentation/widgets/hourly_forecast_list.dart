@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/hourly_forecast.dart';
+import '../../../../core/utils/location_time.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../theme/glass_style.dart';
 import '../../../../widgets/glass_card.dart';
@@ -16,12 +17,19 @@ class HourlyForecastList extends StatelessWidget {
     required this.contentColor,
     required this.style,
     this.isDaytime = true,
+    this.timeZone,
   });
 
   final List<HourlyForecastEntry> entries;
   final Color contentColor;
   final GlassStyle style;
   final bool isDaytime;
+
+  /// The location's IANA time zone (e.g. `"America/New_York"`), from
+  /// `WeatherData.timeZone` — each entry's time is an absolute UTC
+  /// instant, so this is required to label it correctly; null falls back
+  /// to the device's local time zone (see `core/utils/location_time.dart`).
+  final String? timeZone;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +56,7 @@ class HourlyForecastList extends StatelessWidget {
             entry: entries[index],
             contentColor: contentColor,
             isDaytime: isDaytime,
+            timeZone: timeZone,
           ),
         ),
       ),
@@ -56,11 +65,12 @@ class HourlyForecastList extends StatelessWidget {
 }
 
 class _HourColumn extends StatelessWidget {
-  const _HourColumn({required this.entry, required this.contentColor, required this.isDaytime});
+  const _HourColumn({required this.entry, required this.contentColor, required this.isDaytime, this.timeZone});
 
   final HourlyForecastEntry entry;
   final Color contentColor;
   final bool isDaytime;
+  final String? timeZone;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +92,7 @@ class _HourColumn extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _formatHour(entry.time),
+              formatClockHour(entry.time, timeZone),
               style: TextStyle(fontFamily: AppTypography.fontBody, fontSize: 12, fontWeight: FontWeight.w500, color: secondaryColor),
             ),
             const SizedBox(height: 10),
@@ -117,11 +127,5 @@ class _HourColumn extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _formatHour(DateTime time) {
-    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-    final suffix = time.hour < 12 ? 'AM' : 'PM';
-    return '$hour$suffix';
   }
 }

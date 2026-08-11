@@ -124,7 +124,23 @@ flutter run --dart-define=PIRATE_WEATHER_API_KEY=your-key-here
 Without a key, `MinuteCastClient` never makes a network call — the section
 simply doesn't render (no error shown), and the rest of the app (NWS
 current conditions, hourly, daily, alerts) is completely unaffected. NWS
-remains the sole source for everything else the app shows.
+remains the sole source for everything else the app shows. The section is
+also hidden whenever no precipitation is expected in the next hour — it's
+a "what's happening right now" feature, not a general forecast card, so a
+dry hour means it simply isn't on screen.
+
+**On the API key not being secret:** `--dart-define` values are compiled
+into the app binary/bundle, not stored in a server-side secret manager.
+That's fine for a debug build or a native app on your own device, but for
+the **web build**, anything compiled into the JS bundle is visible to
+anyone who opens browser dev tools — `--dart-define` does not make the key
+confidential there. Since this is a private app for personal/friends use
+against a free-tier key with no billing attached, that tradeoff is
+accepted for now; don't rely on this pattern if the app ever needs a key
+that must stay actually secret (that would need a small server-side proxy
+instead). Never commit a real key to a source file, a checked-in JSON/env
+file, or a log line — the key is passed only via the build-time
+`--dart-define` flag.
 
 ## Manual QA checklist (live NWS)
 
