@@ -18,6 +18,7 @@ import '../widgets/alerts_section.dart';
 import '../widgets/city_pager.dart';
 import '../widgets/daily_forecast_list.dart';
 import '../widgets/hourly_forecast_list.dart';
+import '../widgets/minutecast_section.dart';
 import '../widgets/weather_details_grid.dart';
 import '../widgets/weather_hero_section.dart';
 
@@ -218,6 +219,8 @@ class _CompactLayout extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
+        MinuteCastSection(location: data.location, contentColor: contentColor, style: style, timeZone: data.timeZone),
+        const SizedBox(height: 16),
         HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style, isDaytime: data.current.isDaytime ?? true),
         const SizedBox(height: 16),
         DailyForecastList(entries: data.daily, contentColor: contentColor, style: style),
@@ -284,6 +287,8 @@ class _DesktopLayout extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              MinuteCastSection(location: data.location, contentColor: contentColor, style: style, timeZone: data.timeZone),
+              const SizedBox(height: 16),
               HourlyForecastList(entries: data.hourly, contentColor: contentColor, style: style, isDaytime: data.current.isDaytime ?? true),
               const SizedBox(height: 20),
               Row(

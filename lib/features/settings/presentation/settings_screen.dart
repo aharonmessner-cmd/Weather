@@ -73,6 +73,13 @@ class SettingsScreen extends ConsumerWidget {
                       'follow official guidance during severe weather.',
                       style: theme.textTheme.bodyMedium,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Minute-by-minute precipitation timing is provided by Pirate Weather.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       '${AppContact.appName} · a private weather app for personal use.',

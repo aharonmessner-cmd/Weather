@@ -21,6 +21,7 @@ class WeatherData extends Equatable {
     this.hourly = const [],
     this.daily = const [],
     this.alerts = const [],
+    this.timeZone,
   });
 
   final Location location;
@@ -29,6 +30,17 @@ class WeatherData extends Equatable {
   final List<HourlyForecastEntry> hourly;
   final List<DailyForecastEntry> daily;
   final List<WeatherAlert> alerts;
+
+  /// The IANA time zone identifier for [location] (e.g.
+  /// `"America/New_York"`), as reported by NWS's own point resolution.
+  ///
+  /// Null for cached data fetched before this field existed, or on the
+  /// rare point where NWS doesn't report one — callers that display times
+  /// should treat that as "fall back to the device's local time zone",
+  /// never as an error. See `core/utils/location_time.dart` for the
+  /// shared formatter every location-local time display should eventually
+  /// route through.
+  final String? timeZone;
 
   /// When this snapshot was fetched from NWS (not when it was read from
   /// cache) — the basis for "stale data" indicators in the UI.
@@ -46,6 +58,7 @@ class WeatherData extends Equatable {
     List<DailyForecastEntry>? daily,
     List<WeatherAlert>? alerts,
     DateTime? fetchedAt,
+    String? timeZone,
   }) {
     return WeatherData(
       location: location ?? this.location,
@@ -55,6 +68,7 @@ class WeatherData extends Equatable {
       daily: daily ?? this.daily,
       alerts: alerts ?? this.alerts,
       fetchedAt: fetchedAt ?? this.fetchedAt,
+      timeZone: timeZone ?? this.timeZone,
     );
   }
 
@@ -66,6 +80,7 @@ class WeatherData extends Equatable {
         'daily': daily.map((d) => d.toJson()).toList(),
         'alerts': alerts.map((a) => a.toJson()).toList(),
         'fetchedAt': fetchedAt.toIso8601String(),
+        'timeZone': timeZone,
       };
 
   static WeatherData? tryFromJson(Map<String, dynamic> json) {
@@ -100,9 +115,10 @@ class WeatherData extends Equatable {
           .whereType<WeatherAlert>()
           .toList(),
       fetchedAt: fetchedAt,
+      timeZone: json['timeZone'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [location, current, observation, hourly, daily, alerts, fetchedAt];
+  List<Object?> get props => [location, current, observation, hourly, daily, alerts, fetchedAt, timeZone];
 }

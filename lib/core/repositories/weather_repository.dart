@@ -107,6 +107,7 @@ class NwsWeatherRepository implements WeatherRepository {
       daily: daily,
       alerts: alerts,
       fetchedAt: _now(),
+      timeZone: point.timeZone,
     );
 
     await _cache.write(location.id, data);

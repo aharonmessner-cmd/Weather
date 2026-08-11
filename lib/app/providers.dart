@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/repositories/minutecast_repository.dart';
 import '../core/repositories/weather_repository.dart';
+import '../core/services/cache/minutecast_cache.dart';
 import '../core/services/cache/weather_cache.dart';
 import '../core/services/geocoding/nominatim_geocoding_client.dart';
 import '../core/services/location/device_location_service.dart';
 import '../core/services/location/location_naming_service.dart';
 import '../core/services/location/location_store.dart';
+import '../core/services/minutecast/minutecast_client.dart';
 import '../core/services/nws/nws_api_client.dart';
 
 /// Overridden in `main()` with the real instance once it's been awaited —
@@ -52,4 +55,21 @@ final geocodingClientProvider = Provider<NominatimGeocodingClient>((ref) {
   final client = NominatimGeocodingClient();
   ref.onDispose(client.close);
   return client;
+});
+
+final minuteCastClientProvider = Provider<MinuteCastClient>((ref) {
+  final client = MinuteCastClient();
+  ref.onDispose(client.close);
+  return client;
+});
+
+final minuteCastCacheProvider = Provider<MinuteCastCache>((ref) {
+  return MinuteCastCache(ref.watch(sharedPreferencesProvider));
+});
+
+final minuteCastRepositoryProvider = Provider<MinuteCastRepository>((ref) {
+  return PirateWeatherMinuteCastRepository(
+    client: ref.watch(minuteCastClientProvider),
+    cache: ref.watch(minuteCastCacheProvider),
+  );
 });

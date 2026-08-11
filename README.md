@@ -110,6 +110,22 @@ The `bool.fromEnvironment` define is also checked against `kReleaseMode`, so
 it cannot stay on in a release build even if left in a build script by
 mistake.
 
+## MinuteCast (precipitation nowcast)
+
+The "Rain starting in N min" / "Rain ending in N min" section above the
+hourly forecast is powered by [Pirate Weather](https://pirateweather.net/),
+entirely separate from NWS — it needs its own free API key
+(pirate-weather.apiable.io) passed at build/run time:
+
+```
+flutter run --dart-define=PIRATE_WEATHER_API_KEY=your-key-here
+```
+
+Without a key, `MinuteCastClient` never makes a network call — the section
+simply doesn't render (no error shown), and the rest of the app (NWS
+current conditions, hourly, daily, alerts) is completely unaffected. NWS
+remains the sole source for everything else the app shows.
+
 ## Manual QA checklist (live NWS)
 
 Automated tests only ever exercise fixture data. Before trusting a change,

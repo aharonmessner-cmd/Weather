@@ -72,6 +72,9 @@ void main() {
       expect(data.daily, isNotEmpty);
       expect(data.alerts, hasLength(1));
       expect(data.alerts.single.event, 'Heat Advisory');
+      // From points.json's relativeLocation -- proves the point's IANA
+      // time zone (previously parsed and discarded) now flows through.
+      expect(data.timeZone, 'America/New_York');
 
       final cached = await cache.read(_location.id);
       expect(cached, isNotNull);
