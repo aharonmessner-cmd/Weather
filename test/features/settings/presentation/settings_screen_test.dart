@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/app/providers.dart';
 import 'package:weather/app/theme_controller.dart';
+import 'package:weather/app/zmanim_settings_controller.dart';
+import 'package:weather/features/settings/presentation/advanced_zmanim_screen.dart';
 import 'package:weather/features/settings/presentation/settings_screen.dart';
 
 Future<ProviderContainer> _containerWithPrefs() async {
@@ -63,5 +65,38 @@ void main() {
     // should come back up already in Light mode.
     container.invalidate(themeModeProvider);
     expect(container.read(themeModeProvider), ThemeMode.light);
+  });
+
+  testWidgets('Show Zmanim defaults to on', (tester) async {
+    final container = await _containerWithPrefs();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    expect(find.text('Show Zmanim'), findsOneWidget);
+    final toggle = tester.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Show Zmanim'));
+    expect(toggle.value, isTrue);
+    expect(container.read(showZmanimProvider), isTrue);
+  });
+
+  testWidgets('turning Show Zmanim off persists and updates the provider', (tester) async {
+    final container = await _containerWithPrefs();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Show Zmanim'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(showZmanimProvider), isFalse);
+  });
+
+  testWidgets('tapping Advanced Zmanim navigates to the Advanced Zmanim screen', (tester) async {
+    final container = await _containerWithPrefs();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    await tester.tap(find.text('Advanced Zmanim'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AdvancedZmanimScreen), findsOneWidget);
   });
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme_controller.dart';
+import '../../../app/zmanim_settings_controller.dart';
 import '../../../core/app_contact.dart';
 import '../../../widgets/responsive_center.dart';
+import 'advanced_zmanim_screen.dart';
 
 /// Deliberately minimal for V1: appearance and app/data attribution. Units,
 /// notifications, and per-location preferences are natural additions here
@@ -14,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final showZmanim = ref.watch(showZmanimProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -60,6 +63,35 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Card(
               child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Zmanim', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show Zmanim'),
+                      subtitle: const Text("Today's remaining halachic times, at the bottom of Weather"),
+                      value: showZmanim,
+                      onChanged: (value) => ref.read(showZmanimProvider.notifier).setShowZmanim(value),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Advanced Zmanim'),
+                      subtitle: const Text('Customize which Zmanim show, their names, calculations, and order'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AdvancedZmanimScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,6 +108,14 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Minute-by-minute precipitation timing is provided by Pirate Weather.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Zmanim (halachic times) are provided by Hebcal.com, '
+                      'licensed under CC BY 4.0.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

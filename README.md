@@ -142,6 +142,32 @@ instead). Never commit a real key to a source file, a checked-in JSON/env
 file, or a log line — the key is passed only via the build-time
 `--dart-define` flag.
 
+## Zmanim (halachic times)
+
+The Zmanim card at the very bottom of the Weather screen is powered by
+[Hebcal's `/zmanim` REST API](https://www.hebcal.com/home/1663/zmanim-halachic-times-api),
+entirely separate from both NWS and MinuteCast. No API key is needed —
+Hebcal's zmanim endpoint is open — so there's nothing to configure to turn
+it on.
+
+- Shows only *today's* Zmanim for the currently selected location, and
+  only the ones still ahead of the current time — rows disappear as the
+  day passes rather than showing an always-full list.
+- "Show Zmanim" in Settings turns the whole section on/off (default on);
+  turning it off means no Hebcal requests are made at all.
+- "Advanced Zmanim" in Settings lets you enable/disable individual rows,
+  reorder them, rename them, change which Hebcal calculation/halachic
+  opinion backs a row (e.g. Gra vs. Magen Avraham vs. Baal HaTanya, where
+  Hebcal actually offers more than one), and add further Zmanim from
+  Hebcal's full field set beyond the default 12.
+- Content is Hebcal's, licensed
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — see the
+  attribution line in Settings → About.
+
+Like MinuteCast, a Hebcal failure never affects the rest of the app: the
+section just hides (falling back to a cached same-day snapshot when one
+exists) and NWS weather keeps working normally.
+
 ## Manual QA checklist (live NWS)
 
 Automated tests only ever exercise fixture data. Before trusting a change,

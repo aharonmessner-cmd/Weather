@@ -21,6 +21,7 @@ import '../widgets/hourly_forecast_list.dart';
 import '../widgets/minutecast_section.dart';
 import '../widgets/weather_details_grid.dart';
 import '../widgets/weather_hero_section.dart';
+import '../widgets/zmanim_section.dart';
 
 /// The Weather tab: a real-time [WeatherEnvironment] sky filling the
 /// screen, with the hero temperature and every forecast card sitting
@@ -242,6 +243,8 @@ class _CompactLayout extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         AlertsSection(alerts: data.alerts, contentColor: contentColor, style: style),
+        const SizedBox(height: 16),
+        ZmanimSection(location: data.location, contentColor: contentColor, style: style, timeZone: data.timeZone),
       ],
     );
 
@@ -324,6 +327,8 @@ class _DesktopLayout extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               AlertsSection(alerts: data.alerts, contentColor: contentColor, style: style),
+              const SizedBox(height: 20),
+              ZmanimSection(location: data.location, contentColor: contentColor, style: style, timeZone: data.timeZone),
             ],
           ),
         ),
