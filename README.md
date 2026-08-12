@@ -113,21 +113,54 @@ mistake.
 ## MinuteCast (precipitation nowcast)
 
 The "Rain starting in N min" / "Rain ending in N min" section above the
-hourly forecast is powered by [Pirate Weather](https://pirateweather.net/),
-entirely separate from NWS — it needs its own free API key
-(pirate-weather.apiable.io) passed at build/run time:
+hourly forecast, and the UV Index metric in Weather Details, are both
+powered by [Pirate Weather](https://pirateweather.net/), entirely separate
+from NWS — they share the one free API key (pirate-weather.apiable.io)
+passed at build/run time via `--dart-define`, never committed to the repo:
 
 ```
-flutter run --dart-define=PIRATE_WEATHER_API_KEY=your-key-here
+# Local development (hot reload):
+flutter run -d chrome --dart-define=PIRATE_WEATHER_API_KEY=YOUR_KEY_HERE
+
+# Local production-style build:
+flutter build web --release --dart-define=PIRATE_WEATHER_API_KEY=YOUR_KEY_HERE
 ```
 
-Without a key, `MinuteCastClient` never makes a network call — the section
-simply doesn't render (no error shown), and the rest of the app (NWS
-current conditions, hourly, daily, alerts) is completely unaffected. NWS
-remains the sole source for everything else the app shows. The section is
-also hidden whenever no precipitation is expected in the next hour — it's
-a "what's happening right now" feature, not a general forecast card, so a
-dry hour means it simply isn't on screen.
+No `.env` file is needed or used anywhere in this project — the key only
+ever exists as a `--dart-define` value (locally) or a GitHub Actions
+secret (in CI, see below).
+
+Without a key, `MinuteCastClient` checks `MinuteCastConfig.isConfigured`
+and throws before ever making a network call — MinuteCast and UV Index
+both simply don't render (no error shown, no "N/A"), and the rest of the
+app (NWS current conditions, hourly, daily, alerts) is completely
+unaffected. NWS remains the sole source for everything else the app
+shows. The MinuteCast section is also hidden whenever no precipitation is
+expected in the next hour — it's a "what's happening right now" feature,
+not a general forecast card, so a dry hour means it simply isn't on
+screen.
+
+### Supplying the key in GitHub Actions (Pages deploy)
+
+`.github/workflows/build-web.yml` builds and deploys the web app to
+GitHub Pages on every push to `main`. Its "Build Flutter Web" step reads
+the key from a **repository secret** — nothing is ever hardcoded in the
+workflow file:
+
+1. In the GitHub repo, go to **Settings → Secrets and variables →
+   Actions → Repository secrets**.
+2. Add a new secret named exactly **`PIRATE_WEATHER_API_KEY`** with your
+   Pirate Weather key as the value.
+3. That's it — the workflow already passes it through:
+   `--dart-define=PIRATE_WEATHER_API_KEY="$PIRATE_WEATHER_API_KEY"`, with
+   the secret scoped to just that build step via `env:` and referenced as
+   a shell variable (not interpolated directly into the command string).
+   GitHub also automatically redacts the secret's value from any workflow
+   logs.
+
+If the secret is never configured, the deployed site simply behaves the
+same as an unconfigured local build: MinuteCast/UV Index don't appear,
+everything else works normally.
 
 **On the API key not being secret:** `--dart-define` values are compiled
 into the app binary/bundle, not stored in a server-side secret manager.

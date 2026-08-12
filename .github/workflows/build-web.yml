@@ -30,7 +30,12 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter Web
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+        env:
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=PIRATE_WEATHER_API_KEY="$PIRATE_WEATHER_API_KEY"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

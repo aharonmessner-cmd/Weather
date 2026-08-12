@@ -23,6 +23,12 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
+# Local secrets -- this project has no .env-based config (API keys are
+# passed via --dart-define, never a file), but ignore one defensively in
+# case a local .env is ever created out of habit.
+.env
+.env.*
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
