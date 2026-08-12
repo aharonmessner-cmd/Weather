@@ -18,6 +18,7 @@ class WindCompassCard extends StatelessWidget {
     required this.directionCompass,
     required this.contentColor,
     required this.style,
+    this.gustMph,
   });
 
   final double? speedMph;
@@ -25,6 +26,11 @@ class WindCompassCard extends StatelessWidget {
   final String? directionCompass;
   final Color contentColor;
   final GlassStyle style;
+
+  /// Gust speed, shown as a small extra line beneath the main reading when
+  /// present — this is the Wind Gusts metric, kept inside the compass card
+  /// rather than split into its own tile (see `WeatherMetric.windGusts`).
+  final double? gustMph;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +90,20 @@ class WindCompassCard extends StatelessWidget {
               ),
             ),
           ),
+          if (gustMph != null) ...[
+            const SizedBox(height: 2),
+            Center(
+              child: Text(
+                'Gusts ${gustMph!.round()} mph',
+                style: TextStyle(
+                  fontFamily: AppTypography.fontBody,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: secondaryColor.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

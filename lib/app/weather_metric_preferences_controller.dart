@@ -17,21 +17,12 @@ class WeatherMetricPreferencesController extends Notifier<Set<WeatherMetric>> {
   static const _key = 'weather_metric_preferences_v1';
 
   /// The first-run default — every metric the app already effectively
-  /// showed (humidity, dew point, pressure, precipitation, wind) stays
-  /// on, plus Feels Like and UV Index as the two genuinely new additions
-  /// this feature introduces. UV Index still only actually appears once
-  /// Pirate Weather reports a usable value (see `WeatherDetailsGrid`) —
-  /// enabling it by default here is safe precisely because availability
-  /// is checked separately.
-  static const Set<WeatherMetric> defaults = {
-    WeatherMetric.feelsLike,
-    WeatherMetric.humidity,
-    WeatherMetric.dewPoint,
-    WeatherMetric.pressure,
-    WeatherMetric.precipitation,
-    WeatherMetric.wind,
-    WeatherMetric.uvIndex,
-  };
+  /// showed stays on, matching the pre-preferences experience exactly.
+  /// Availability (does the current fetch actually have a value) is
+  /// always checked separately in `WeatherDetailsGrid`, which is what
+  /// makes it safe to default everything, including UV Index, Visibility,
+  /// Wind Gusts, and Last Hour Precipitation, to on here.
+  static const Set<WeatherMetric> defaults = {...WeatherMetric.values};
 
   @override
   Set<WeatherMetric> build() {

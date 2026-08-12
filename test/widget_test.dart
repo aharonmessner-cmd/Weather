@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/app/app.dart';
+import 'package:weather/app/navigation/app_bottom_nav_bar.dart';
+import 'package:weather/app/navigation/app_nav_rail.dart';
 import 'package:weather/app/providers.dart';
 import 'package:weather/core/services/nws/nws_api_client.dart';
 
@@ -45,7 +47,7 @@ void main() {
 
     await pumpApp(tester);
 
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(AppBottomNavBar), findsOneWidget);
     expect(find.text('Weather'), findsWidgets);
 
     await tester.tap(find.text('Locations'));
@@ -63,8 +65,8 @@ void main() {
 
     await pumpApp(tester);
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(AppNavRail), findsOneWidget);
+    expect(find.byType(AppBottomNavBar), findsNothing);
   });
 
   testWidgets('adding a location switches the Weather tab out of its empty state', (tester) async {
@@ -90,8 +92,11 @@ void main() {
     expect(find.text('No Locations Yet'), findsNothing);
 
     // Switching back to Weather now shows that location instead of the
-    // empty state.
-    await tester.tap(find.text('Weather'));
+    // empty state. The default test surface is tablet-width, where the
+    // custom rail is compact (icon-only, no visible label text) -- the
+    // destination's accessible name still exists as a Semantics label,
+    // so tap through that rather than visible text.
+    await tester.tap(find.bySemanticsLabel('Weather'));
     await tester.pumpAndSettle();
     expect(find.text('No Locations Yet'), findsNothing);
   });

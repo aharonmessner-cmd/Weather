@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/app/app.dart';
+import 'package:weather/app/navigation/app_bottom_nav_bar.dart';
+import 'package:weather/app/navigation/app_nav_rail.dart';
 import 'package:weather/app/providers.dart';
 import 'package:weather/core/services/nws/nws_api_client.dart';
 import 'package:weather/features/locations/application/locations_controller.dart';
@@ -88,16 +90,16 @@ void main() {
   testWidgets('tablet width uses a compact (non-extended) rail', (tester) async {
     await _pumpAppWithAlert(tester, size: const Size(700, 900));
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(tester.widget<NavigationRail>(find.byType(NavigationRail)).extended, isFalse);
+    expect(find.byType(AppNavRail), findsOneWidget);
+    expect(find.byType(AppBottomNavBar), findsNothing);
+    expect(tester.widget<AppNavRail>(find.byType(AppNavRail)).extended, isFalse);
   });
 
   testWidgets('desktop width uses an extended rail', (tester) async {
     await _pumpAppWithAlert(tester, size: const Size(1280, 900));
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(tester.widget<NavigationRail>(find.byType(NavigationRail)).extended, isTrue);
+    expect(find.byType(AppNavRail), findsOneWidget);
+    expect(tester.widget<AppNavRail>(find.byType(AppNavRail)).extended, isTrue);
     // Extended rails always show their destination labels.
     expect(find.text('Locations'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
@@ -106,7 +108,23 @@ void main() {
   testWidgets('phone width uses a bottom NavigationBar instead of a rail', (tester) async {
     await _pumpAppWithAlert(tester, size: const Size(390, 844));
 
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byType(AppBottomNavBar), findsOneWidget);
+    expect(find.byType(AppNavRail), findsNothing);
+  });
+
+  group('responsive navigation sweep', () {
+    // 320/390/430 = narrow/normal/large phone widths; 700 = tablet;
+    // 1024 = the desktop breakpoint itself; 1600 = wide desktop.
+    for (final width in [320.0, 390.0, 430.0, 700.0, 1024.0, 1600.0]) {
+      testWidgets('renders without overflow or clipping at width $width', (tester) async {
+        await _pumpAppWithAlert(tester, size: Size(width, 900));
+
+        // Exactly one nav surface for a given breakpoint, never both.
+        final hasBar = find.byType(AppBottomNavBar).evaluate().isNotEmpty;
+        final hasRail = find.byType(AppNavRail).evaluate().isNotEmpty;
+        expect(hasBar ^ hasRail, isTrue, reason: 'exactly one of bottom bar / rail at width $width');
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }

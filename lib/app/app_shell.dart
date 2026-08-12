@@ -8,7 +8,14 @@ import '../features/locations/presentation/locations_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/weather/application/weather_controller.dart';
 import '../features/weather/presentation/screens/weather_screen.dart';
+import '../theme/app_colors.dart';
+import '../widgets/app_platform.dart';
 import '../widgets/responsive.dart';
+import 'navigation/app_bottom_nav_bar.dart';
+import 'navigation/app_nav_rail.dart';
+import 'navigation/nav_glyphs.dart';
+import 'navigation/nav_item.dart';
+import 'navigation/nav_style.dart';
 
 enum AppSection { weather, locations, alerts, settings }
 
@@ -26,42 +33,20 @@ final _activeAlertCountProvider = Provider<int>((ref) {
 class _Destination {
   const _Destination({
     required this.section,
-    required this.icon,
-    required this.selectedIcon,
+    required this.glyph,
     required this.label,
   });
 
   final AppSection section;
-  final IconData icon;
-  final IconData selectedIcon;
+  final NavGlyphKind glyph;
   final String label;
 }
 
 const _destinations = [
-  _Destination(
-    section: AppSection.weather,
-    icon: Icons.wb_sunny_outlined,
-    selectedIcon: Icons.wb_sunny_rounded,
-    label: 'Weather',
-  ),
-  _Destination(
-    section: AppSection.locations,
-    icon: Icons.location_on_outlined,
-    selectedIcon: Icons.location_on_rounded,
-    label: 'Locations',
-  ),
-  _Destination(
-    section: AppSection.alerts,
-    icon: Icons.warning_amber_outlined,
-    selectedIcon: Icons.warning_rounded,
-    label: 'Alerts',
-  ),
-  _Destination(
-    section: AppSection.settings,
-    icon: Icons.settings_outlined,
-    selectedIcon: Icons.settings_rounded,
-    label: 'Settings',
-  ),
+  _Destination(section: AppSection.weather, glyph: NavGlyphKind.weather, label: 'Weather'),
+  _Destination(section: AppSection.locations, glyph: NavGlyphKind.locations, label: 'Locations'),
+  _Destination(section: AppSection.alerts, glyph: NavGlyphKind.alerts, label: 'Alerts'),
+  _Destination(section: AppSection.settings, glyph: NavGlyphKind.settings, label: 'Settings'),
 ];
 
 const _screens = <AppSection, Widget>{
@@ -83,8 +68,22 @@ class AppShell extends ConsumerWidget {
     final screenSize = screenSizeOf(context);
     final selectedIndex = _destinations.indexWhere((d) => d.section == section);
     final alertCount = ref.watch(_activeAlertCountProvider);
+    final theme = Theme.of(context);
+    final palette = theme.brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+    final platform = currentAppPlatform;
+    final navStyle = NavPlatformStyle.of(platform, palette, theme.brightness);
+    final accentColor = theme.colorScheme.primary;
 
     void onSelect(int index) => ref.read(appShellSectionProvider.notifier).state = _destinations[index].section;
+
+    final items = [
+      for (final d in _destinations)
+        NavItemData(
+          glyph: d.glyph,
+          label: d.label,
+          badgeCount: d.section == AppSection.alerts ? alertCount : 0,
+        ),
+    ];
 
     // A plain widget swap rather than an IndexedStack: with only four
     // lightweight tabs, rebuilding on switch is cheap, and it avoids every
@@ -96,17 +95,13 @@ class AppShell extends ConsumerWidget {
     if (screenSize == ScreenSize.mobile) {
       return Scaffold(
         body: body,
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: AppBottomNavBar(
+          items: items,
           selectedIndex: selectedIndex,
-          onDestinationSelected: onSelect,
-          destinations: [
-            for (final d in _destinations)
-              NavigationDestination(
-                icon: _destinationIcon(d, alertCount, selected: false),
-                selectedIcon: _destinationIcon(d, alertCount, selected: true),
-                label: d.label,
-              ),
-          ],
+          onSelected: onSelect,
+          style: navStyle,
+          palette: palette,
+          accentColor: accentColor,
         ),
       );
     }
@@ -115,36 +110,18 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            extended: extended,
-            minExtendedWidth: 200,
+          AppNavRail(
+            items: items,
             selectedIndex: selectedIndex,
-            onDestinationSelected: onSelect,
-            leading: extended
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Icon(Icons.cloud_rounded, size: 32),
-                  )
-                : const SizedBox(height: 16),
-            destinations: [
-              for (final d in _destinations)
-                NavigationRailDestination(
-                  icon: _destinationIcon(d, alertCount, selected: false),
-                  selectedIcon: _destinationIcon(d, alertCount, selected: true),
-                  label: Text(d.label),
-                ),
-            ],
+            onSelected: onSelect,
+            style: navStyle,
+            palette: palette,
+            accentColor: accentColor,
+            extended: extended,
           ),
-          const VerticalDivider(width: 1),
           Expanded(child: body),
         ],
       ),
     );
-  }
-
-  Widget _destinationIcon(_Destination destination, int alertCount, {required bool selected}) {
-    final icon = Icon(selected ? destination.selectedIcon : destination.icon);
-    if (destination.section != AppSection.alerts || alertCount == 0) return icon;
-    return Badge(label: Text('$alertCount'), child: icon);
   }
 }

@@ -18,26 +18,25 @@ import 'wind_compass_card.dart';
 
 /// The full weather-details layout: a wind compass and sunrise arc as the
 /// two graphic "hero" cards, a precipitation trend, then small metric
-/// cards (gusts, humidity, dew point, visibility, pressure, UV Index,
-/// last-hour precipitation) for everything else.
+/// cards (humidity, dew point, visibility, pressure, UV Index, last-hour
+/// precipitation) for everything else. Wind gusts, when enabled and
+/// available, show as a small extra line inside the wind compass card
+/// itself rather than a separate tile — see [WindCompassCard.gustMph].
 ///
 /// Two independent things decide whether a given piece shows up:
-///   1. **Preference** — does the user want it on? (Feels Like, Humidity,
-///      Dew Point, Pressure, Precipitation, Wind, UV Index are each
-///      user-configurable; see Settings' "Weather Details" section and
-///      [weatherMetricPreferencesProvider].)
+///   1. **Preference** — does the user want it on? Every [WeatherMetric]
+///      is independently user-configurable; see Settings' "Weather
+///      Details" section and [weatherMetricPreferencesProvider].
 ///   2. **Availability** — does the current data actually have a value
 ///      for it? (NWS stations frequently don't report every field; UV
 ///      Index specifically comes from Pirate Weather/MinuteCast's
 ///      existing fetch — see [minuteCastControllerProvider] — and is
 ///      unavailable whenever that is, e.g. no API key configured.)
 ///
-/// A metric only renders when *both* are true. Gusts/Visibility/Last-Hour
-/// aren't part of the configurable set (unchanged from before this
-/// feature) and keep their original "show whenever the data has it"
-/// behavior. Nothing here ever shows a placeholder for a disabled or
-/// unavailable metric — the grid simply has fewer cells, which its
-/// existing wrap-style layout already reflows around with no empty gaps.
+/// A metric only renders when *both* are true. Nothing here ever shows a
+/// placeholder for a disabled or unavailable metric — the grid simply has
+/// fewer cells, which its existing wrap-style layout already reflows
+/// around with no empty gaps.
 class WeatherDetailsGrid extends ConsumerWidget {
   const WeatherDetailsGrid({
     super.key,
@@ -94,14 +93,6 @@ class WeatherDetailsGrid extends ConsumerWidget {
     final uvIndex = _uvIndexFrom(ref.watch(minuteCastControllerProvider(location)).value);
 
     final metrics = <InfoMetricCard>[
-      if (obs.windGustMph != null)
-        InfoMetricCard(
-          icon: Icons.storm_rounded,
-          label: 'Gusts',
-          value: '${obs.windGustMph!.round()} mph',
-          contentColor: contentColor,
-          style: style,
-        ),
       if (enabled.contains(WeatherMetric.feelsLike) && feelsLikeFahrenheit != null)
         InfoMetricCard(
           icon: Icons.thermostat_rounded,
@@ -126,13 +117,14 @@ class WeatherDetailsGrid extends ConsumerWidget {
           contentColor: contentColor,
           style: style,
         ),
-      InfoMetricCard(
-        icon: Icons.visibility_outlined,
-        label: 'Visibility',
-        value: obs.visibilityMiles != null ? '${obs.visibilityMiles!.toStringAsFixed(1)} mi' : '--',
-        contentColor: contentColor,
-        style: style,
-      ),
+      if (enabled.contains(WeatherMetric.visibility) && obs.visibilityMiles != null)
+        InfoMetricCard(
+          icon: Icons.visibility_outlined,
+          label: 'Visibility',
+          value: '${obs.visibilityMiles!.toStringAsFixed(1)} mi',
+          contentColor: contentColor,
+          style: style,
+        ),
       if (enabled.contains(WeatherMetric.pressure) && obs.pressureInHg != null)
         InfoMetricCard(
           icon: Icons.speed_outlined,
@@ -150,7 +142,7 @@ class WeatherDetailsGrid extends ConsumerWidget {
           contentColor: contentColor,
           style: style,
         ),
-      if (obs.precipitationLastHourInches != null)
+      if (enabled.contains(WeatherMetric.lastHourPrecipitation) && obs.precipitationLastHourInches != null)
         InfoMetricCard(
           icon: Icons.umbrella_outlined,
           label: 'Last Hour',
@@ -173,6 +165,7 @@ class WeatherDetailsGrid extends ConsumerWidget {
           directionCompass: obs.windDirectionCompass,
           contentColor: contentColor,
           style: style,
+          gustMph: enabled.contains(WeatherMetric.windGusts) ? obs.windGustMph : null,
         ),
       if (times != null)
         SunriseArcCard(

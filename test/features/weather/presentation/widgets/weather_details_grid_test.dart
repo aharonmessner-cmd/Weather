@@ -53,12 +53,20 @@ Observation _observation({
   double? humidityPercent,
   double? dewPointFahrenheit,
   double? pressureInHg,
+  double? visibilityMiles,
+  double? windSpeedMph,
+  double? windGustMph,
+  double? precipitationLastHourInches,
 }) {
   return Observation(
     temperatureFahrenheit: 72,
     humidityPercent: humidityPercent,
     dewPointFahrenheit: dewPointFahrenheit,
     pressureInHg: pressureInHg,
+    visibilityMiles: visibilityMiles,
+    windSpeedMph: windSpeedMph,
+    windGustMph: windGustMph,
+    precipitationLastHourInches: precipitationLastHourInches,
   );
 }
 
@@ -130,6 +138,37 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.text('12'), findsOneWidget);
+    });
+
+    testWidgets('shows a gust line when gustMph is provided', (tester) async {
+      await _pump(
+        tester,
+        WindCompassCard(
+          speedMph: 12,
+          directionDegrees: 225,
+          directionCompass: 'SW',
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+          gustMph: 24,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Gusts 24 mph'), findsOneWidget);
+    });
+
+    testWidgets('omits the gust line when gustMph is null', (tester) async {
+      await _pump(
+        tester,
+        WindCompassCard(
+          speedMph: 12,
+          directionDegrees: 225,
+          directionCompass: 'SW',
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Gusts'), findsNothing);
     });
 
     testWidgets('renders gracefully with no wind data at all', (tester) async {
@@ -546,6 +585,93 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('Visibility: enabled + available shows, disabled hides', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(visibilityMiles: 10),
+        enabledMetrics: {WeatherMetric.visibility},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Visibility'), findsOneWidget);
+
+      await pumpWith(
+        tester,
+        observation: _observation(visibilityMiles: 10),
+        enabledMetrics: const {},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Visibility'), findsNothing);
+    });
+
+    testWidgets('Visibility: enabled but no data -> hidden, no "--" placeholder', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.visibility},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Visibility'), findsNothing);
+      expect(find.text('--'), findsNothing);
+    });
+
+    testWidgets('Last Hour Precipitation: enabled + available shows, disabled hides', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(precipitationLastHourInches: 0.1),
+        enabledMetrics: {WeatherMetric.lastHourPrecipitation},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Last Hour'), findsOneWidget);
+
+      await pumpWith(
+        tester,
+        observation: _observation(precipitationLastHourInches: 0.1),
+        enabledMetrics: const {},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Last Hour'), findsNothing);
+    });
+
+    testWidgets('Wind Gusts: shown as a line inside the wind compass card, not a separate tile', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(windSpeedMph: 12, windGustMph: 24),
+        enabledMetrics: {WeatherMetric.wind, WeatherMetric.windGusts},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WindCompassCard), findsOneWidget);
+      expect(find.text('Gusts 24 mph'), findsOneWidget);
+      // Gusts never gets its own InfoMetricCard tile.
+      expect(find.widgetWithText(InfoMetricCard, 'Gusts'), findsNothing);
+    });
+
+    testWidgets('Wind Gusts: wind enabled but gusts disabled -> no gust line', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(windSpeedMph: 12, windGustMph: 24),
+        enabledMetrics: {WeatherMetric.wind},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WindCompassCard), findsOneWidget);
+      expect(find.text('Gusts 24 mph'), findsNothing);
+    });
+
+    testWidgets('Wind Gusts: enabled but no gust data -> no gust line, no crash', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(windSpeedMph: 12),
+        enabledMetrics: {WeatherMetric.wind, WeatherMetric.windGusts},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WindCompassCard), findsOneWidget);
+      expect(find.textContaining('Gusts'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('Feels Like: enabled + available shows, disabled hides', (tester) async {
       await _pumpGrid(
         tester,
@@ -743,13 +869,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Visibility is unconditional (not part of the configurable set,
-      // unchanged from before this feature) -- so with only Humidity
-      // enabled the grid holds exactly Humidity + Visibility, nothing
-      // else, and no gap for the disabled Dew Point/Pressure/etc.
-      expect(find.byType(InfoMetricCard), findsNWidgets(2));
+      // Visibility is part of the configurable set too, so with only
+      // Humidity enabled the grid holds exactly Humidity -- nothing else,
+      // and no gap for the disabled Visibility/Dew Point/Pressure/etc.
+      expect(find.byType(InfoMetricCard), findsNWidgets(1));
       expect(find.text('Humidity'), findsOneWidget);
-      expect(find.text('Visibility'), findsOneWidget);
+      expect(find.text('Visibility'), findsNothing);
       expect(find.text('Dew Point'), findsNothing);
       expect(find.text('Pressure'), findsNothing);
       expect(tester.takeException(), isNull);

@@ -111,7 +111,7 @@ void main() {
     expect(find.byType(AdvancedZmanimScreen), findsOneWidget);
   });
 
-  testWidgets('Weather Details section lists all 7 metrics, all on by default', (tester) async {
+  testWidgets('Weather Details section lists every WeatherMetric, all on by default', (tester) async {
     final container = await _containerWithPrefs();
     addTearDown(container.dispose);
     await _pump(tester, container);
