@@ -94,4 +94,46 @@ void main() {
       expect(PirateWeatherResponse.tryParse(<String, dynamic>{}), isNull);
     });
   });
+
+  group('PirateWeatherResponse.tryParse: uvIndex', () {
+    test('parses currently.uvIndex alongside minutely data', () {
+      final response = PirateWeatherResponse.tryParse({
+        'minutely': {
+          'data': [
+            {'time': 1755000000, 'precipIntensity': 0, 'precipProbability': 0},
+          ],
+        },
+        'currently': {'uvIndex': 7},
+      });
+
+      expect(response!.uvIndex, 7.0);
+    });
+
+    test('a missing currently block leaves uvIndex null without failing the parse', () {
+      final response = PirateWeatherResponse.tryParse({
+        'minutely': {
+          'data': [
+            {'time': 1755000000, 'precipIntensity': 0, 'precipProbability': 0},
+          ],
+        },
+      });
+
+      expect(response, isNotNull);
+      expect(response!.uvIndex, isNull);
+    });
+
+    test('a malformed currently.uvIndex leaves uvIndex null rather than crashing', () {
+      final response = PirateWeatherResponse.tryParse({
+        'minutely': {
+          'data': [
+            {'time': 1755000000, 'precipIntensity': 0, 'precipProbability': 0},
+          ],
+        },
+        'currently': {'uvIndex': 'not-a-number'},
+      });
+
+      expect(response, isNotNull);
+      expect(response!.uvIndex, isNull);
+    });
+  });
 }

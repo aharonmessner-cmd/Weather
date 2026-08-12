@@ -25,7 +25,7 @@ void main() {
       expect(requested, isFalse);
     });
 
-    test('requests the URL in Pirate Weather\'s documented shape, si units, minutely only', () async {
+    test('requests the URL in Pirate Weather\'s documented shape, si units, minutely + currently', () async {
       http.Request? captured;
       final client = MinuteCastClient(
         apiKey: 'test-key',
@@ -40,7 +40,39 @@ void main() {
       expect(captured, isNotNull);
       expect(captured!.url.path, '/forecast/test-key/38.8894,-77.0352');
       expect(captured!.url.queryParameters['units'], 'si');
-      expect(captured!.url.queryParameters['exclude'], contains('currently'));
+      // `currently` must stay in the request (it's where uvIndex comes
+      // from) -- only hourly/daily/alerts/flags are excluded.
+      expect(captured!.url.queryParameters['exclude'], isNot(contains('currently')));
+      expect(captured!.url.queryParameters['exclude'], contains('hourly'));
+      expect(captured!.url.queryParameters['exclude'], contains('daily'));
+    });
+
+    test('parses currently.uvIndex alongside the minutely data', () async {
+      final client = MinuteCastClient(
+        apiKey: 'test-key',
+        httpClient: MockClient((_) async => http.Response(
+              '{"minutely": {"data": [{"time": 1755000000}]}, "currently": {"uvIndex": 5}}',
+              200,
+            )),
+      );
+
+      final response = await client.fetchMinutely(latitude: 38.8894, longitude: -77.0352);
+
+      expect(response.uvIndex, 5.0);
+    });
+
+    test('a missing currently block leaves uvIndex null without failing the parse', () async {
+      final client = MinuteCastClient(
+        apiKey: 'test-key',
+        httpClient: MockClient((_) async => http.Response(
+              '{"minutely": {"data": [{"time": 1755000000}]}}',
+              200,
+            )),
+      );
+
+      final response = await client.fetchMinutely(latitude: 38.8894, longitude: -77.0352);
+
+      expect(response.uvIndex, isNull);
     });
 
     test('parses a successful response into minutes', () async {

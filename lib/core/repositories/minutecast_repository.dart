@@ -51,6 +51,7 @@ class PirateWeatherMinuteCastRepository implements MinuteCastRepository {
       location: location,
       minutes: response.minutes.map(MinutePrecipitationForecast.fromPirateWeather).toList(),
       source: MinuteCastSource.pirateWeather,
+      uvIndex: response.uvIndex,
     );
 
     await _cache.write(location.id, data);

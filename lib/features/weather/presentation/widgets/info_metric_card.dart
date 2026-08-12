@@ -17,6 +17,7 @@ class InfoMetricCard extends StatelessWidget {
     required this.value,
     required this.contentColor,
     required this.style,
+    this.caption,
   });
 
   final IconData icon;
@@ -24,6 +25,11 @@ class InfoMetricCard extends StatelessWidget {
   final String value;
   final Color contentColor;
   final GlassStyle style;
+
+  /// An optional small classification shown under [value] (e.g. UV
+  /// Index's "Moderate"/"High"). Omitted entirely by every card that
+  /// doesn't pass one, so this never affects the existing cards' layout.
+  final String? caption;
 
   /// This card sits in a fixed-aspect-ratio grid cell (see
   /// [WeatherDetailsGrid]) that can't grow taller to fit larger text, so
@@ -48,7 +54,10 @@ class InfoMetricCard extends StatelessWidget {
             Icon(icon, size: 20, color: secondaryColor),
             const SizedBox(width: 10),
             Expanded(
-              child: Column(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -79,7 +88,20 @@ class InfoMetricCard extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (caption != null)
+                    Text(
+                      caption!,
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontBody,
+                        fontSize: 10,
+                        height: 1.1,
+                        fontWeight: FontWeight.w500,
+                        color: secondaryColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
+                ),
               ),
             ),
           ],

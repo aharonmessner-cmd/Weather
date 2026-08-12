@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weather/app/providers.dart';
+import 'package:weather/core/models/daily_forecast.dart';
 import 'package:weather/core/models/hourly_forecast.dart';
+import 'package:weather/core/models/location.dart';
+import 'package:weather/core/models/minutecast/minute_cast.dart';
+import 'package:weather/core/models/minutecast/minute_precipitation_forecast.dart';
 import 'package:weather/core/models/observation.dart';
 import 'package:weather/core/models/weather_condition.dart';
+import 'package:weather/core/models/weather_metric.dart';
+import 'package:weather/core/repositories/minutecast_repository.dart';
 import 'package:weather/core/utils/sun_times.dart';
 import 'package:weather/features/weather/presentation/widgets/daily_forecast_list.dart';
 import 'package:weather/features/weather/presentation/widgets/hourly_forecast_list.dart';
@@ -11,14 +20,78 @@ import 'package:weather/features/weather/presentation/widgets/precipitation_spar
 import 'package:weather/features/weather/presentation/widgets/sunrise_arc_card.dart';
 import 'package:weather/features/weather/presentation/widgets/weather_details_grid.dart';
 import 'package:weather/features/weather/presentation/widgets/wind_compass_card.dart';
-import 'package:weather/core/models/daily_forecast.dart';
 import 'package:weather/theme/glass_style.dart';
+
+const _dc = Location(id: 'dc', name: 'Washington, DC', latitude: 38.8894, longitude: -77.0352);
+
+class _FakeMinuteCastRepository implements MinuteCastRepository {
+  _FakeMinuteCastRepository({this.cached});
+
+  MinuteCast? cached;
+
+  @override
+  Future<MinuteCast?> getCached(Location location) async => cached;
+
+  @override
+  Future<MinuteCast> fetchAndCache(Location location) async {
+    if (cached != null) return cached!;
+    throw StateError('no fake fetch configured');
+  }
+}
+
+MinuteCast _minuteCastWithUv(double uv) {
+  return MinuteCast(
+    generatedAt: DateTime.now(),
+    location: _dc,
+    minutes: [MinutePrecipitationForecast(time: DateTime.now(), type: PrecipitationType.none)],
+    source: MinuteCastSource.pirateWeather,
+    uvIndex: uv,
+  );
+}
+
+Observation _observation({
+  double? humidityPercent,
+  double? dewPointFahrenheit,
+  double? pressureInHg,
+}) {
+  return Observation(
+    temperatureFahrenheit: 72,
+    humidityPercent: humidityPercent,
+    dewPointFahrenheit: dewPointFahrenheit,
+    pressureInHg: pressureInHg,
+  );
+}
 
 Future<void> _pump(WidgetTester tester, Widget child, {double width = 400}) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: SizedBox(width: width, child: SingleChildScrollView(child: child)),
+      ),
+    ),
+  );
+}
+
+/// [WeatherDetailsGrid] reads Riverpod providers (metric preferences, and
+/// MinuteCast for UV Index) -- these tests only need SharedPreferences
+/// mocked; with no `--dart-define` API key set, MinuteCast resolves to
+/// "not configured" immediately, with no real network call.
+Future<void> _pumpGrid(
+  WidgetTester tester,
+  Widget child, {
+  double width = 400,
+  List overrides = const [],
+  Map<String, Object> prefsValues = const {},
+}) async {
+  SharedPreferences.setMockInitialValues(prefsValues);
+  final prefs = await SharedPreferences.getInstance();
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs), ...overrides.cast()],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(width: width, child: SingleChildScrollView(child: child)),
+        ),
       ),
     ),
   );
@@ -250,10 +323,11 @@ void main() {
         (i) => HourlyForecastEntry(time: base.add(Duration(hours: i)), precipitationProbabilityPercent: 30),
       );
 
-      await _pump(
+      await _pumpGrid(
         tester,
         WeatherDetailsGrid(
           observation: obs,
+          location: _dc,
           hourlyEntries: hourly,
           sunTimes: SunTimes(sunrise: base, sunset: base.add(const Duration(hours: 12))),
           now: base.add(const Duration(hours: 4)),
@@ -265,9 +339,9 @@ void main() {
     });
 
     testWidgets('renders a null observation as a message, not a crash', (tester) async {
-      await _pump(
+      await _pumpGrid(
         tester,
-        const WeatherDetailsGrid(observation: null, contentColor: Colors.white, style: GlassStyle.onSkyDark),
+        const WeatherDetailsGrid(observation: null, location: _dc, contentColor: Colors.white, style: GlassStyle.onSkyDark),
       );
       expect(tester.takeException(), isNull);
       expect(find.text('No current observation available.'), findsOneWidget);
@@ -277,9 +351,9 @@ void main() {
       final obs = Observation.fromJson({
         'temperatureFahrenheit': 72.0,
       });
-      await _pump(
+      await _pumpGrid(
         tester,
-        WeatherDetailsGrid(observation: obs, contentColor: Colors.white, style: GlassStyle.onSkyDark),
+        WeatherDetailsGrid(observation: obs, location: _dc, contentColor: Colors.white, style: GlassStyle.onSkyDark),
       );
       expect(tester.takeException(), isNull);
     });
@@ -294,6 +368,26 @@ void main() {
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
               child: Scaffold(
                 body: SizedBox(width: width, child: SingleChildScrollView(child: child)),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Future<void> pumpScaledGrid(WidgetTester tester, Widget child, double scale, {double width = 400}) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+                child: Scaffold(
+                  body: SizedBox(width: width, child: SingleChildScrollView(child: child)),
+                ),
               ),
             ),
           ),
@@ -318,9 +412,10 @@ void main() {
         (i) => HourlyForecastEntry(time: base.add(Duration(hours: i)), precipitationProbabilityPercent: 30),
       );
 
-      await pumpScaled(
+      await pumpScaledGrid(
         tester,
         WeatherDetailsGrid(
+          location: _dc,
           observation: obs,
           hourlyEntries: hourly,
           sunTimes: SunTimes(sunrise: base, sunset: base.add(const Duration(hours: 12))),
@@ -369,6 +464,339 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('enabled x available composition', () {
+    Future<void> pumpWith(
+      WidgetTester tester, {
+      required Observation observation,
+      required Set<WeatherMetric> enabledMetrics,
+      MinuteCast? minuteCast,
+      double width = 400,
+    }) {
+      return _pumpGrid(
+        tester,
+        WeatherDetailsGrid(observation: observation, location: _dc, contentColor: Colors.white, style: GlassStyle.onSkyDark),
+        width: width,
+        prefsValues: {
+          'weather_metric_preferences_v1': [for (final m in enabledMetrics) m.name],
+        },
+        overrides: [
+          minuteCastRepositoryProvider.overrideWithValue(_FakeMinuteCastRepository(cached: minuteCast)),
+        ],
+      );
+    }
+
+    testWidgets('enabled + available -> displayed (Humidity)', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54),
+        enabledMetrics: {WeatherMetric.humidity},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Humidity'), findsOneWidget);
+    });
+
+    testWidgets('enabled + unavailable -> hidden (Humidity, no data)', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.humidity},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Humidity'), findsNothing);
+    });
+
+    testWidgets('disabled + available -> hidden (Humidity present in data but off)', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54),
+        enabledMetrics: const {},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Humidity'), findsNothing);
+    });
+
+    testWidgets('disabled + unavailable -> hidden (Humidity)', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: const {},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Humidity'), findsNothing);
+    });
+
+    testWidgets('disabling Humidity leaves other enabled metrics displayed (reflow, no gap)', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(dewPointFahrenheit: 60, pressureInHg: 29.92),
+        enabledMetrics: {WeatherMetric.dewPoint, WeatherMetric.pressure},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Humidity'), findsNothing);
+      expect(find.text('Dew Point'), findsOneWidget);
+      expect(find.text('Pressure'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Feels Like: enabled + available shows, disabled hides', (tester) async {
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: _observation(),
+          location: _dc,
+          feelsLikeFahrenheit: 75,
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        prefsValues: {
+          'weather_metric_preferences_v1': [WeatherMetric.feelsLike.name],
+        },
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Feels Like'), findsOneWidget);
+
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: _observation(),
+          location: _dc,
+          feelsLikeFahrenheit: 75,
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        prefsValues: {'weather_metric_preferences_v1': <String>[]},
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Feels Like'), findsNothing);
+    });
+
+    testWidgets('Feels Like: enabled but no data -> hidden, no "--" placeholder', (tester) async {
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: _observation(),
+          location: _dc,
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        prefsValues: {
+          'weather_metric_preferences_v1': [WeatherMetric.feelsLike.name],
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Feels Like'), findsNothing);
+    });
+
+    testWidgets('UV Index: enabled + Pirate Weather has a value -> shown with category', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.uvIndex},
+        minuteCast: _minuteCastWithUv(5),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('UV Index'), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
+      expect(find.text('Moderate'), findsOneWidget);
+    });
+
+    testWidgets('UV Index: enabled but unavailable (not configured / no cache) -> hidden, never N/A', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.uvIndex},
+        minuteCast: null,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('UV Index'), findsNothing);
+      expect(find.textContaining('N/A'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('UV Index: available but disabled -> hidden', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: const {},
+        minuteCast: _minuteCastWithUv(8),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('UV Index'), findsNothing);
+    });
+
+    testWidgets('UV Index unavailable never breaks the rest of the weather screen', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 40, dewPointFahrenheit: 55, pressureInHg: 30.1),
+        enabledMetrics: {WeatherMetric.uvIndex, WeatherMetric.humidity, WeatherMetric.dewPoint, WeatherMetric.pressure},
+        minuteCast: null,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Humidity'), findsOneWidget);
+      expect(find.text('Dew Point'), findsOneWidget);
+      expect(find.text('Pressure'), findsOneWidget);
+      expect(find.text('UV Index'), findsNothing);
+    });
+
+    testWidgets('Wind: disabled hides WindCompassCard and reflows Sunrise to full width', (tester) async {
+      final base = DateTime(2026, 8, 9, 8);
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: _observation(),
+          location: _dc,
+          sunTimes: SunTimes(sunrise: base, sunset: base.add(const Duration(hours: 12))),
+          now: base.add(const Duration(hours: 4)),
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        prefsValues: {'weather_metric_preferences_v1': <String>[]},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WindCompassCard), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Precipitation: disabled hides the sparkline even when hourly entries have signal', (tester) async {
+      final base = DateTime(2026, 8, 9, 8);
+      final hourly = List.generate(
+        6,
+        (i) => HourlyForecastEntry(time: base.add(Duration(hours: i)), precipitationProbabilityPercent: 40),
+      );
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: _observation(),
+          location: _dc,
+          hourlyEntries: hourly,
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        prefsValues: {'weather_metric_preferences_v1': <String>[]},
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PrecipitationSparkline), findsNothing);
+    });
+
+    testWidgets('all metrics enabled and available renders without overflow at narrow width', (tester) async {
+      final base = DateTime(2026, 8, 9, 8);
+      final hourly = List.generate(
+        6,
+        (i) => HourlyForecastEntry(time: base.add(Duration(hours: i)), precipitationProbabilityPercent: 40),
+      );
+      await _pumpGrid(
+        tester,
+        WeatherDetailsGrid(
+          observation: Observation.fromJson({
+            'temperatureFahrenheit': 72.0,
+            'humidityPercent': 54.0,
+            'dewPointFahrenheit': 60.0,
+            'windSpeedMph': 12.0,
+            'windGustMph': 18.0,
+            'windDirectionCompass': 'SW',
+            'windDirectionDegrees': 225.0,
+            'visibilityMiles': 10.0,
+            'pressureInHg': 29.92,
+            'precipitationLastHourInches': 0.05,
+          }),
+          location: _dc,
+          feelsLikeFahrenheit: 75,
+          hourlyEntries: hourly,
+          sunTimes: SunTimes(sunrise: base, sunset: base.add(const Duration(hours: 12))),
+          now: base.add(const Duration(hours: 4)),
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        width: 320,
+        overrides: [
+          minuteCastRepositoryProvider.overrideWithValue(_FakeMinuteCastRepository(cached: _minuteCastWithUv(6))),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('UV Index'), findsOneWidget);
+      expect(find.text('Feels Like'), findsOneWidget);
+    });
+
+    testWidgets('only a few metrics enabled renders a smaller grid without empty cells', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54),
+        enabledMetrics: {WeatherMetric.humidity},
+      );
+      await tester.pumpAndSettle();
+
+      // Visibility is unconditional (not part of the configurable set,
+      // unchanged from before this feature) -- so with only Humidity
+      // enabled the grid holds exactly Humidity + Visibility, nothing
+      // else, and no gap for the disabled Dew Point/Pressure/etc.
+      expect(find.byType(InfoMetricCard), findsNWidgets(2));
+      expect(find.text('Humidity'), findsOneWidget);
+      expect(find.text('Visibility'), findsOneWidget);
+      expect(find.text('Dew Point'), findsNothing);
+      expect(find.text('Pressure'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders a narrow phone width (280) without overflow', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54, dewPointFahrenheit: 60, pressureInHg: 29.92),
+        enabledMetrics: {WeatherMetric.humidity, WeatherMetric.dewPoint, WeatherMetric.pressure, WeatherMetric.uvIndex},
+        minuteCast: _minuteCastWithUv(9),
+        width: 280,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders a normal phone width (400) with a 2-column grid', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54, dewPointFahrenheit: 60, pressureInHg: 29.92),
+        enabledMetrics: {WeatherMetric.humidity, WeatherMetric.dewPoint, WeatherMetric.pressure},
+        width: 400,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final gridView = tester.widget<GridView>(find.byType(GridView));
+      final delegate = gridView.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(delegate.crossAxisCount, 2);
+    });
+
+    testWidgets('renders a tablet/desktop width (700) with a 3-column grid, no overflow', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 54, dewPointFahrenheit: 60, pressureInHg: 29.92),
+        enabledMetrics: {WeatherMetric.humidity, WeatherMetric.dewPoint, WeatherMetric.pressure, WeatherMetric.uvIndex},
+        minuteCast: _minuteCastWithUv(3),
+        width: 700,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final gridView = tester.widget<GridView>(find.byType(GridView));
+      final delegate = gridView.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(delegate.crossAxisCount, 3);
     });
   });
 }

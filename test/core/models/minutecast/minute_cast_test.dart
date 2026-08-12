@@ -53,12 +53,13 @@ void main() {
     });
   });
 
-  test('JSON round-trip preserves generatedAt, location, minutes, and source', () {
+  test('JSON round-trip preserves generatedAt, location, minutes, source, and uvIndex', () {
     final cast = MinuteCast(
       generatedAt: DateTime.utc(2026, 8, 11, 10, 38),
       location: _location,
       minutes: [_minute(0), _minute(1)],
       source: MinuteCastSource.pirateWeather,
+      uvIndex: 6.0,
     );
 
     final roundTripped = MinuteCast.tryFromJson(cast.toJson());
@@ -68,6 +69,20 @@ void main() {
     expect(roundTripped.location, cast.location);
     expect(roundTripped.minutes, cast.minutes);
     expect(roundTripped.source, MinuteCastSource.pirateWeather);
+    expect(roundTripped.uvIndex, 6.0);
+  });
+
+  test('uvIndex round-trips as null when not reported', () {
+    final cast = MinuteCast(
+      generatedAt: DateTime.utc(2026, 8, 11, 10, 38),
+      location: _location,
+      minutes: [_minute(0)],
+      source: MinuteCastSource.pirateWeather,
+    );
+
+    final roundTripped = MinuteCast.tryFromJson(cast.toJson());
+
+    expect(roundTripped!.uvIndex, isNull);
   });
 
   test('tryFromJson returns null for malformed cached JSON rather than throwing', () {

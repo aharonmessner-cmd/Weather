@@ -40,13 +40,19 @@ class PirateWeatherMinuteEntry {
 
 /// The subset of a Pirate Weather `/forecast` response this app parses.
 class PirateWeatherResponse {
-  const PirateWeatherResponse({required this.minutes});
+  const PirateWeatherResponse({required this.minutes, this.uvIndex});
 
   /// Chronological (Pirate Weather already returns them in order; not
   /// re-sorted here since a malformed/out-of-order response is itself
   /// meaningful "can't trust this" information the repository layer
   /// should see rather than silently paper over).
   final List<PirateWeatherMinuteEntry> minutes;
+
+  /// `currently.uvIndex` — the same request already fetches this block
+  /// (see `MinuteCastClient`, which no longer excludes `currently`), so
+  /// UV Index rides along with the minutely fetch rather than requiring
+  /// a second API call. Null if Pirate Weather didn't report one.
+  final double? uvIndex;
 
   static PirateWeatherResponse? tryParse(Map<String, dynamic> json) {
     final minutely = json['minutely'];
@@ -61,7 +67,10 @@ class PirateWeatherResponse {
         .toList();
     if (minutes.isEmpty) return null;
 
-    return PirateWeatherResponse(minutes: minutes);
+    final currently = json['currently'];
+    final uvIndex = currently is Map ? _asDouble(currently['uvIndex']) : null;
+
+    return PirateWeatherResponse(minutes: minutes, uvIndex: uvIndex);
   }
 }
 

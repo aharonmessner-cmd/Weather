@@ -21,11 +21,14 @@ class MinuteCastClient {
   final Duration _timeout;
   final String _apiKey;
 
-  /// Fetches the minute-by-minute precipitation nowcast for a point.
+  /// Fetches the minute-by-minute precipitation nowcast for a point, plus
+  /// `currently.uvIndex` (see [PirateWeatherResponse.uvIndex]).
   ///
-  /// Only the `minutely` block is requested (`exclude=` everything else)
-  /// — this app never uses Pirate Weather for current conditions,
-  /// hourly, or daily data, so there's no reason to pay for that payload.
+  /// `hourly`/`daily`/`alerts` are still excluded — this app never uses
+  /// Pirate Weather for forecasts or alerts, only `minutely` (precipitation
+  /// nowcast) and `currently` (UV Index), so there's no reason to pay for
+  /// the rest of that payload. Keeping `currently` in the same request
+  /// means UV Index never needs a second API call.
   Future<PirateWeatherResponse> fetchMinutely({
     required double latitude,
     required double longitude,
@@ -35,7 +38,7 @@ class MinuteCastClient {
     final uri = Uri.parse('${MinuteCastConfig.baseUrl}/$_apiKey/$latitude,$longitude').replace(
       queryParameters: {
         'units': 'si',
-        'exclude': 'currently,hourly,daily,alerts,flags',
+        'exclude': 'hourly,daily,alerts,flags',
       },
     );
 

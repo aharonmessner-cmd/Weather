@@ -21,6 +21,7 @@ class MinuteCast extends Equatable {
     required this.location,
     required this.minutes,
     required this.source,
+    this.uvIndex,
   });
 
   /// When this snapshot was produced (fetch time) — the basis for
@@ -33,6 +34,13 @@ class MinuteCast extends Equatable {
   /// interpolated or extended.
   final List<MinutePrecipitationForecast> minutes;
   final MinuteCastSource source;
+
+  /// Current UV Index from the same Pirate Weather fetch that produced
+  /// [minutes] (see `PirateWeatherResponse.uvIndex`) — riding along on
+  /// the existing request rather than a dedicated one. Null if Pirate
+  /// Weather didn't report a usable value; callers must treat that as
+  /// "UV unavailable," never a fake/default value.
+  final double? uvIndex;
 
   /// The last minute this snapshot actually describes — the true horizon,
   /// which may be less than 60 minutes if the provider returned fewer.
@@ -47,6 +55,7 @@ class MinuteCast extends Equatable {
         'location': location.toJson(),
         'minutes': minutes.map((m) => m.toJson()).toList(),
         'source': source.name,
+        'uvIndex': uvIndex,
       };
 
   static MinuteCast? tryFromJson(Map<String, dynamic> json) {
@@ -71,9 +80,10 @@ class MinuteCast extends Equatable {
         (s) => s.name == json['source'],
         orElse: () => MinuteCastSource.pirateWeather,
       ),
+      uvIndex: (json['uvIndex'] as num?)?.toDouble(),
     );
   }
 
   @override
-  List<Object?> get props => [generatedAt, location, minutes, source];
+  List<Object?> get props => [generatedAt, location, minutes, source, uvIndex];
 }

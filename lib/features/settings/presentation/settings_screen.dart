@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme_controller.dart';
+import '../../../app/weather_metric_preferences_controller.dart';
 import '../../../app/zmanim_settings_controller.dart';
 import '../../../core/app_contact.dart';
+import '../../../core/models/weather_metric.dart';
 import '../../../widgets/responsive_center.dart';
 import 'advanced_zmanim_screen.dart';
 
@@ -17,6 +19,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final showZmanim = ref.watch(showZmanimProvider);
+    final enabledMetrics = ref.watch(weatherMetricPreferencesProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -56,6 +59,27 @@ class SettingsScreen extends ConsumerWidget {
                           .read(themeModeProvider.notifier)
                           .setThemeMode(selection.first),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Weather Details', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    for (final metric in WeatherMetric.values)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(metric.settingsLabel),
+                        value: enabledMetrics.contains(metric),
+                        onChanged: (value) =>
+                            ref.read(weatherMetricPreferencesProvider.notifier).setEnabled(metric, value),
+                      ),
                   ],
                 ),
               ),

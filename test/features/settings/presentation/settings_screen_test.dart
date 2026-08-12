@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/app/providers.dart';
 import 'package:weather/app/theme_controller.dart';
+import 'package:weather/app/weather_metric_preferences_controller.dart';
 import 'package:weather/app/zmanim_settings_controller.dart';
+import 'package:weather/core/models/weather_metric.dart';
 import 'package:weather/features/settings/presentation/advanced_zmanim_screen.dart';
 import 'package:weather/features/settings/presentation/settings_screen.dart';
 
@@ -17,6 +19,15 @@ Future<ProviderContainer> _containerWithPrefs() async {
 }
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) {
+  // The Settings screen now has several stacked cards (Appearance, Weather
+  // Details' 7 switches, Zmanim, About) that don't all fit in the default
+  // test surface height -- ListView only mounts elements near the
+  // viewport, so widen the surface rather than scrolling to each item.
+  tester.view.physicalSize = const Size(400, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   return tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -98,5 +109,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AdvancedZmanimScreen), findsOneWidget);
+  });
+
+  testWidgets('Weather Details section lists all 7 metrics, all on by default', (tester) async {
+    final container = await _containerWithPrefs();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    expect(find.text('Weather Details'), findsOneWidget);
+    for (final metric in WeatherMetric.values) {
+      final tile = tester.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, metric.settingsLabel));
+      expect(tile.value, isTrue, reason: '${metric.settingsLabel} should default to on');
+    }
+    expect(container.read(weatherMetricPreferencesProvider), WeatherMetric.values.toSet());
+  });
+
+  testWidgets('turning off a Weather Details metric persists and updates the provider', (tester) async {
+    final container = await _containerWithPrefs();
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    await tester.tap(find.widgetWithText(SwitchListTile, 'UV Index'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(weatherMetricPreferencesProvider).contains(WeatherMetric.uvIndex), isFalse);
+    final tile = tester.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'UV Index'));
+    expect(tile.value, isFalse);
   });
 }
