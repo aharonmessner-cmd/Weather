@@ -8,7 +8,22 @@ import 'package:weather/app/app.dart';
 import 'package:weather/app/navigation/app_bottom_nav_bar.dart';
 import 'package:weather/app/navigation/app_nav_rail.dart';
 import 'package:weather/app/providers.dart';
+import 'package:weather/core/models/allergy/allergy_data.dart';
+import 'package:weather/core/models/location.dart';
+import 'package:weather/core/repositories/allergy_repository.dart';
 import 'package:weather/core/services/nws/nws_api_client.dart';
+
+/// Keeps these app-level tests off the network for Allergy data (see the
+/// matching double in app_shell_test.dart) -- unlike MinuteCast,
+/// Open-Meteo needs no API key, so nothing else here would stop a real
+/// HTTP attempt if a location's weather ever loads successfully.
+class _NoopAllergyRepository implements AllergyRepository {
+  @override
+  Future<AllergyData?> getCached(Location location) async => null;
+
+  @override
+  Future<AllergyData> fetchAndCache(Location location) => Future.error(StateError('not used in this test'));
+}
 
 void main() {
   // Widget tests exercise navigation and local state, not live NWS
@@ -25,6 +40,7 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           nwsApiClientProvider.overrideWithValue(offlineClient),
+          allergyRepositoryProvider.overrideWithValue(_NoopAllergyRepository()),
         ],
         child: const WeatherApp(),
       ),

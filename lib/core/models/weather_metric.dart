@@ -19,7 +19,8 @@ enum WeatherMetric {
   uvIndex,
   visibility,
   windGusts,
-  lastHourPrecipitation;
+  lastHourPrecipitation,
+  allergies;
 
   /// The exact label shown for this metric in Settings' "Weather Details"
   /// toggle list.
@@ -34,5 +35,6 @@ enum WeatherMetric {
         WeatherMetric.visibility => 'Visibility',
         WeatherMetric.windGusts => 'Wind Gusts',
         WeatherMetric.lastHourPrecipitation => 'Last Hour Precipitation',
+        WeatherMetric.allergies => 'Allergies (Dust)',
       };
 }

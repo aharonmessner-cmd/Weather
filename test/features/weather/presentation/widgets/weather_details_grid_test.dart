@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather/app/providers.dart';
+import 'package:weather/core/models/allergy/allergy_data.dart';
 import 'package:weather/core/models/daily_forecast.dart';
 import 'package:weather/core/models/hourly_forecast.dart';
 import 'package:weather/core/models/location.dart';
@@ -11,6 +12,7 @@ import 'package:weather/core/models/minutecast/minute_precipitation_forecast.dar
 import 'package:weather/core/models/observation.dart';
 import 'package:weather/core/models/weather_condition.dart';
 import 'package:weather/core/models/weather_metric.dart';
+import 'package:weather/core/repositories/allergy_repository.dart';
 import 'package:weather/core/repositories/minutecast_repository.dart';
 import 'package:weather/core/utils/sun_times.dart';
 import 'package:weather/features/weather/presentation/widgets/daily_forecast_list.dart';
@@ -46,6 +48,30 @@ MinuteCast _minuteCastWithUv(double uv) {
     minutes: [MinutePrecipitationForecast(time: DateTime.now(), type: PrecipitationType.none)],
     source: MinuteCastSource.pirateWeather,
     uvIndex: uv,
+  );
+}
+
+class _FakeAllergyRepository implements AllergyRepository {
+  _FakeAllergyRepository({this.cached});
+
+  AllergyData? cached;
+
+  @override
+  Future<AllergyData?> getCached(Location location) async => cached;
+
+  @override
+  Future<AllergyData> fetchAndCache(Location location) async {
+    if (cached != null) return cached!;
+    throw StateError('no fake fetch configured');
+  }
+}
+
+AllergyData _allergyWithDust(double dust) {
+  return AllergyData(
+    generatedAt: DateTime.now(),
+    location: _dc,
+    source: AllergySource.openMeteo,
+    dustMicrogramsPerCubicMeter: dust,
   );
 }
 
@@ -246,6 +272,88 @@ void main() {
 
       expect(find.bySemanticsLabel('Sun position unavailable'), findsOneWidget);
     });
+
+    testWidgets('renders at a narrow phone width without overflow', (tester) async {
+      final sunrise = DateTime.utc(2026, 6, 21, 10);
+      final sunset = DateTime.utc(2026, 6, 21, 22);
+      await _pump(
+        tester,
+        SunriseArcCard(
+          sunTimes: SunTimes(sunrise: sunrise, sunset: sunset),
+          now: sunrise.add(const Duration(hours: 6)),
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        width: 150,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders at a wide desktop width without overflow', (tester) async {
+      final sunrise = DateTime.utc(2026, 6, 21, 10);
+      final sunset = DateTime.utc(2026, 6, 21, 22);
+      await _pump(
+        tester,
+        SunriseArcCard(
+          sunTimes: SunTimes(sunrise: sunrise, sunset: sunset),
+          now: sunrise.add(const Duration(hours: 6)),
+          contentColor: Colors.white,
+          style: GlassStyle.onSkyDark,
+        ),
+        width: 900,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('sun arc geometry', () {
+    const size = Size(200, 46);
+
+    test('sunrise (progress 0) sits at the arc rect\'s left endpoint, on the baseline', () {
+      final rect = sunArcRect(size);
+      final position = sunArcPosition(rect, 0);
+
+      expect(position.dx, closeTo(rect.left, 0.001));
+      expect(position.dy, closeTo(rect.center.dy, 0.001)); // rect's vertical midline == baseline
+    });
+
+    test('sunset (progress 1) sits at the arc rect\'s right endpoint, on the baseline', () {
+      final rect = sunArcRect(size);
+      final position = sunArcPosition(rect, 1);
+
+      expect(position.dx, closeTo(rect.right, 0.001));
+      expect(position.dy, closeTo(rect.center.dy, 0.001));
+    });
+
+    test('solar noon (progress 0.5) sits at the peak of the dome, directly above center', () {
+      final rect = sunArcRect(size);
+      final position = sunArcPosition(rect, 0.5);
+
+      expect(position.dx, closeTo(rect.center.dx, 0.001));
+      expect(position.dy, closeTo(rect.top, 0.001)); // the highest point of the dome
+    });
+
+    test('intermediate progress values stay exactly on the ellipse (proper arc, not an approximation)', () {
+      final rect = sunArcRect(size);
+      for (final p in [0.1, 0.25, 0.4, 0.6, 0.75, 0.9]) {
+        final position = sunArcPosition(rect, p);
+        final nx = (position.dx - rect.center.dx) / (rect.width / 2);
+        final ny = (position.dy - rect.center.dy) / (rect.height / 2);
+        // Points on an ellipse satisfy (x/rx)^2 + (y/ry)^2 == 1.
+        expect(nx * nx + ny * ny, closeTo(1.0, 1e-9), reason: 'progress=$p');
+        // Stay within the dome (top half): never below the baseline.
+        expect(position.dy, lessThanOrEqualTo(rect.center.dy + 0.001), reason: 'progress=$p');
+      }
+    });
+
+    test('the rect adapts to any width without distorting the endpoints\' vertical position', () {
+      for (final width in [80.0, 200.0, 400.0, 900.0]) {
+        final rect = sunArcRect(Size(width, 46));
+        expect(rect.width, closeTo(width - sunArcHorizontalInset * 2, 0.001));
+        expect(sunArcPosition(rect, 0).dy, closeTo(rect.center.dy, 0.001));
+        expect(sunArcPosition(rect, 1).dy, closeTo(rect.center.dy, 0.001));
+      }
+    });
   });
 
   group('PrecipitationSparkline', () {
@@ -373,6 +481,7 @@ void main() {
           contentColor: Colors.white,
           style: GlassStyle.onSkyDark,
         ),
+        overrides: [allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository())],
       );
       expect(tester.takeException(), isNull);
     });
@@ -381,6 +490,7 @@ void main() {
       await _pumpGrid(
         tester,
         const WeatherDetailsGrid(observation: null, location: _dc, contentColor: Colors.white, style: GlassStyle.onSkyDark),
+        overrides: [allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository())],
       );
       expect(tester.takeException(), isNull);
       expect(find.text('No current observation available.'), findsOneWidget);
@@ -393,6 +503,7 @@ void main() {
       await _pumpGrid(
         tester,
         WeatherDetailsGrid(observation: obs, location: _dc, contentColor: Colors.white, style: GlassStyle.onSkyDark),
+        overrides: [allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository())],
       );
       expect(tester.takeException(), isNull);
     });
@@ -419,7 +530,10 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository()),
+          ],
           child: MaterialApp(
             home: Builder(
               builder: (context) => MediaQuery(
@@ -512,6 +626,7 @@ void main() {
       required Observation observation,
       required Set<WeatherMetric> enabledMetrics,
       MinuteCast? minuteCast,
+      AllergyData? allergyData,
       double width = 400,
     }) {
       return _pumpGrid(
@@ -523,6 +638,7 @@ void main() {
         },
         overrides: [
           minuteCastRepositoryProvider.overrideWithValue(_FakeMinuteCastRepository(cached: minuteCast)),
+          allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository(cached: allergyData)),
         ],
       );
     }
@@ -778,6 +894,59 @@ void main() {
       expect(find.text('UV Index'), findsNothing);
     });
 
+    testWidgets('Allergies: enabled + Open-Meteo has a dust value -> shown with its level', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.allergies},
+        allergyData: _allergyWithDust(60), // High
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dust'), findsOneWidget);
+      expect(find.text('High'), findsOneWidget);
+    });
+
+    testWidgets('Allergies: enabled but unavailable (no cache, fetch fails) -> hidden, never a placeholder', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: {WeatherMetric.allergies},
+        allergyData: null,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dust'), findsNothing);
+    });
+
+    testWidgets('Allergies: available but disabled -> hidden', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(),
+        enabledMetrics: const {},
+        allergyData: _allergyWithDust(5), // Low
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dust'), findsNothing);
+    });
+
+    testWidgets('Allergies unavailable never breaks the rest of the weather screen', (tester) async {
+      await pumpWith(
+        tester,
+        observation: _observation(humidityPercent: 40, dewPointFahrenheit: 55, pressureInHg: 30.1),
+        enabledMetrics: {WeatherMetric.allergies, WeatherMetric.humidity, WeatherMetric.dewPoint, WeatherMetric.pressure},
+        allergyData: null,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Humidity'), findsOneWidget);
+      expect(find.text('Dew Point'), findsOneWidget);
+      expect(find.text('Pressure'), findsOneWidget);
+      expect(find.text('Dust'), findsNothing);
+    });
+
     testWidgets('Wind: disabled hides WindCompassCard and reflows Sunrise to full width', (tester) async {
       final base = DateTime(2026, 8, 9, 8);
       await _pumpGrid(
@@ -852,6 +1021,7 @@ void main() {
         width: 320,
         overrides: [
           minuteCastRepositoryProvider.overrideWithValue(_FakeMinuteCastRepository(cached: _minuteCastWithUv(6))),
+          allergyRepositoryProvider.overrideWithValue(_FakeAllergyRepository(cached: _allergyWithDust(60))),
         ],
       );
       await tester.pumpAndSettle();
@@ -859,6 +1029,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('UV Index'), findsOneWidget);
       expect(find.text('Feels Like'), findsOneWidget);
+      expect(find.text('Dust'), findsOneWidget);
     });
 
     testWidgets('only a few metrics enabled renders a smaller grid without empty cells', (tester) async {

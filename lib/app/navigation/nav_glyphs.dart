@@ -88,9 +88,13 @@ class _SunGlyphPainter extends _GlyphPainter {
   }
 }
 
-/// Locations: a map pin — teardrop outline with a small highlight dot in
-/// place of a true cut-out hole (which would need to know the background
-/// color to composite correctly against glass).
+/// Locations: a map pin, constructed exactly rather than approximated —
+/// a circular head plus the two straight lines that are genuinely
+/// tangent to it, meeting at a point below. Tangency is computed from the
+/// actual circle geometry (see the right-triangle relation below), so the
+/// arc-to-line transitions are truly smooth with no hand-tuned control
+/// points to look "off" at small sizes, unlike the previous version's
+/// mismatched quadratic curves.
 class _PinGlyphPainter extends _GlyphPainter {
   const _PinGlyphPainter({required super.color, required super.selected});
 
@@ -98,18 +102,25 @@ class _PinGlyphPainter extends _GlyphPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final topCenter = Offset(w / 2, h * 0.16);
-    final headRadius = w * 0.28;
+    final radius = size.shortestSide * 0.19;
+    final center = Offset(w / 2, h * 0.37);
+    final tip = Offset(w / 2, h * 0.88);
+
+    // Right triangle center-tangentPoint-tip has a right angle at the
+    // tangent point, so the angle at center between "straight down" and
+    // "toward the tangent point" is acos(radius / distanceToTip).
+    final distanceToTip = tip.dy - center.dy;
+    final halfAngle = math.acos((radius / distanceToTip).clamp(0.0, 1.0));
+    final left = center + Offset.fromDirection(math.pi / 2 + halfAngle, radius);
+    final right = center + Offset.fromDirection(math.pi / 2 - halfAngle, radius);
 
     final path = Path()
-      ..moveTo(topCenter.dx - headRadius, topCenter.dy)
-      ..arcToPoint(
-        Offset(topCenter.dx + headRadius, topCenter.dy),
-        radius: Radius.circular(headRadius),
-        clockwise: true,
-      )
-      ..quadraticBezierTo(topCenter.dx + headRadius, h * 0.55, w / 2, h * 0.92)
-      ..quadraticBezierTo(topCenter.dx - headRadius, h * 0.55, topCenter.dx - headRadius, topCenter.dy)
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(left.dx, left.dy)
+      // The major arc over the top of the circle, from the left tangent
+      // point to the right one.
+      ..arcToPoint(right, radius: Radius.circular(radius), clockwise: true, largeArc: true)
+      ..lineTo(tip.dx, tip.dy)
       ..close();
 
     if (selected) {
@@ -123,7 +134,7 @@ class _PinGlyphPainter extends _GlyphPainter {
         ..strokeWidth = strokeWidth
         ..strokeJoin = StrokeJoin.round,
     );
-    canvas.drawCircle(topCenter, headRadius * 0.34, Paint()..color = lineColor);
+    canvas.drawCircle(center, radius * 0.36, Paint()..color = lineColor);
   }
 }
 

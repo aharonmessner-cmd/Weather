@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/repositories/allergy_repository.dart';
 import '../core/repositories/minutecast_repository.dart';
 import '../core/repositories/weather_repository.dart';
 import '../core/repositories/zmanim_repository.dart';
+import '../core/services/allergy/allergy_client.dart';
+import '../core/services/cache/allergy_cache.dart';
 import '../core/services/cache/minutecast_cache.dart';
 import '../core/services/cache/weather_cache.dart';
 import '../core/services/cache/zmanim_cache.dart';
@@ -74,6 +77,23 @@ final minuteCastRepositoryProvider = Provider<MinuteCastRepository>((ref) {
   return PirateWeatherMinuteCastRepository(
     client: ref.watch(minuteCastClientProvider),
     cache: ref.watch(minuteCastCacheProvider),
+  );
+});
+
+final allergyClientProvider = Provider<AllergyClient>((ref) {
+  final client = AllergyClient();
+  ref.onDispose(client.close);
+  return client;
+});
+
+final allergyCacheProvider = Provider<AllergyCache>((ref) {
+  return AllergyCache(ref.watch(sharedPreferencesProvider));
+});
+
+final allergyRepositoryProvider = Provider<AllergyRepository>((ref) {
+  return OpenMeteoAllergyRepository(
+    client: ref.watch(allergyClientProvider),
+    cache: ref.watch(allergyCacheProvider),
   );
 });
 

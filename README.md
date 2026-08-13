@@ -175,6 +175,29 @@ instead). Never commit a real key to a source file, a checked-in JSON/env
 file, or a log line — the key is passed only via the build-time
 `--dart-define` flag.
 
+## Allergies (Dust)
+
+The "Dust" card in Weather Details is powered by
+[Open-Meteo's Air Quality API](https://open-meteo.com/en/docs/air-quality-api),
+entirely separate from NWS/Pirate Weather/Hebcal. It's free and keyless —
+no signup, no `--dart-define`, nothing to configure.
+
+This is deliberately **dust only**. Pirate Weather and NWS were both
+inspected and neither provides any dust, pollen, or air-quality data at
+all (Pirate Weather's `currently`/`minutely` blocks are precipitation and
+UV Index only — see `core/models/minutecast/`). There is also no
+legitimate public data source for pet/animal dander anywhere — it isn't
+an atmospheric quantity any weather or air-quality service measures — so
+this app never shows a "Dander" reading; that would mean fabricating a
+number with nothing real behind it.
+
+The three-tier Low/Moderate/High classification (`AllergyLevel` in
+`core/models/allergy/allergy_level.dart`) is a simple, documented
+approximation loosely aligned with common PM10 air-quality guidance, not
+a certified index. Like MinuteCast, a failure here never affects the rest
+of the app: the card just doesn't appear, and NWS weather keeps working
+normally.
+
 ## Zmanim (halachic times)
 
 The Zmanim card at the very bottom of the Weather screen is powered by

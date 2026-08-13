@@ -8,10 +8,27 @@ import 'package:weather/app/app.dart';
 import 'package:weather/app/navigation/app_bottom_nav_bar.dart';
 import 'package:weather/app/navigation/app_nav_rail.dart';
 import 'package:weather/app/providers.dart';
+import 'package:weather/core/models/allergy/allergy_data.dart';
+import 'package:weather/core/models/location.dart';
+import 'package:weather/core/repositories/allergy_repository.dart';
 import 'package:weather/core/services/nws/nws_api_client.dart';
 import 'package:weather/features/locations/application/locations_controller.dart';
 
 import '../support/fixture.dart';
+
+/// The Weather tab watches Allergy data (see `WeatherDetailsGrid`)
+/// whenever the preference is on, which it is by default -- unlike
+/// MinuteCast, Open-Meteo needs no API key, so nothing else here would
+/// stop a real HTTP attempt. This double keeps these shell-level tests
+/// (which only care about navigation, not weather content) off the
+/// network entirely.
+class _NoopAllergyRepository implements AllergyRepository {
+  @override
+  Future<AllergyData?> getCached(Location location) async => null;
+
+  @override
+  Future<AllergyData> fetchAndCache(Location location) => Future.error(StateError('not used in this test'));
+}
 
 /// Seeds one saved location and lets its weather (including the fixture's
 /// one active alert) load through the real provider stack, so the shell's
@@ -43,6 +60,7 @@ Future<WidgetTester> _pumpAppWithAlert(WidgetTester tester, {Size size = const S
   final container = ProviderContainer(overrides: [
     sharedPreferencesProvider.overrideWithValue(prefs),
     nwsApiClientProvider.overrideWithValue(client),
+    allergyRepositoryProvider.overrideWithValue(_NoopAllergyRepository()),
   ]);
   addTearDown(container.dispose);
 

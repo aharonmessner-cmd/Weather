@@ -161,6 +161,40 @@ String _progressLabel(double? progress) {
   return '${(progress * 100).round()} percent of the way from sunrise to sunset';
 }
 
+const double sunArcHorizontalInset = 5.0;
+const double sunArcEndpointRadius = 2.5;
+
+/// The bounding rect of the sunrise-to-sunset dome for a given canvas
+/// [size] -- a proper ellipse sized to exactly fill the available space
+/// (not a fragment of some far larger, mostly-offscreen ellipse), so its
+/// curvature stays smooth and proportionate at any card width. Exposed
+/// (rather than kept private to the painter) so its geometry -- and
+/// [sunArcPosition], which is defined purely in terms of it -- can be
+/// tested directly without rendering.
+Rect sunArcRect(Size size) {
+  final baseline = size.height - sunArcEndpointRadius - 1;
+  final arcHeight = baseline - 3;
+  return Rect.fromLTWH(
+    sunArcHorizontalInset,
+    baseline - arcHeight * 2,
+    size.width - sunArcHorizontalInset * 2,
+    arcHeight * 2,
+  );
+}
+
+/// The point on [rect]'s dome (its ellipse's top half) at day-progress
+/// [progress] -- 0 is the sunrise endpoint, 0.5 is the peak (solar noon),
+/// 1 is the sunset endpoint. This is the exact parametric point Flutter's
+/// `Canvas.drawArc` itself walks along for the same rect/angle, so a sun
+/// indicator placed here always sits precisely on the drawn line.
+Offset sunArcPosition(Rect rect, double progress) {
+  final angle = math.pi + progress * math.pi;
+  return rect.center + Offset.fromDirection(angle, 1).scale(rect.width / 2, rect.height / 2);
+}
+
+/// A clean half-ellipse "dome" from sunrise to sunset with the sun's
+/// current position on it -- see [sunArcRect]/[sunArcPosition] for the
+/// geometry.
 class _SunArcPainter extends CustomPainter {
   _SunArcPainter({required this.progress, required this.arcColor, required this.sunColor});
 
@@ -172,34 +206,50 @@ class _SunArcPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final baseline = size.height - 4;
-    final rect = Rect.fromLTWH(4, -size.height * 0.7, size.width - 8, size.height * 1.7);
+    final rect = sunArcRect(size);
 
-    final arcPaint = Paint()
+    // The full sunrise-to-sunset dome, as a quiet reference track.
+    final trackPaint = Paint()
       ..color = arcColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, math.pi, math.pi, false, arcPaint);
+    canvas.drawArc(rect, math.pi, math.pi, false, trackPaint);
 
-    canvas.drawLine(Offset(4, baseline), Offset(size.width - 4, baseline), arcPaint..strokeWidth = 1);
+    final sunrisePoint = sunArcPosition(rect, 0);
+    final sunsetPoint = sunArcPosition(rect, 1);
+    final endpointPaint = Paint()..color = arcColor;
+    canvas.drawCircle(sunrisePoint, sunArcEndpointRadius, endpointPaint);
+    canvas.drawCircle(sunsetPoint, sunArcEndpointRadius, endpointPaint);
 
     final p = progress;
     if (p == null) return;
 
-    final angle = math.pi + p * math.pi;
-    final center = rect.center;
-    final radiusX = rect.width / 2;
-    final radiusY = rect.height / 2;
-    final sunPosition = Offset(
-      center.dx + radiusX * math.cos(angle),
-      center.dy + radiusY * math.sin(angle),
-    );
+    // The portion of the dome already traveled, drawn brighter than the
+    // quiet track so the current position reads as the visual focus.
+    final traveledPaint = Paint()
+      ..color = sunColor.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, math.pi, p * math.pi, false, traveledPaint);
 
-    canvas.drawCircle(sunPosition, 5, Paint()..color = sunColor);
+    final sunPosition = sunArcPosition(rect, p);
+
+    // A soft, small glow behind the indicator rather than a harder shadow
+    // or a second ring -- restrained, in keeping with the rest of the
+    // app's glass system.
+    canvas.drawCircle(
+      sunPosition,
+      8,
+      Paint()
+        ..color = sunColor.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawCircle(sunPosition, 4, Paint()..color = sunColor);
   }
 
   @override
   bool shouldRepaint(covariant _SunArcPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.sunColor != sunColor;
+      oldDelegate.progress != progress || oldDelegate.sunColor != sunColor || oldDelegate.arcColor != arcColor;
 }

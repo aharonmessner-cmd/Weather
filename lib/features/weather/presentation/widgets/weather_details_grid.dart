@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/weather_metric_preferences_controller.dart';
+import '../../../../core/models/allergy/allergy_level.dart';
 import '../../../../core/models/hourly_forecast.dart';
 import '../../../../core/models/location.dart';
 import '../../../../core/models/observation.dart';
@@ -10,6 +11,7 @@ import '../../../../core/utils/sun_times.dart';
 import '../../../../core/utils/uv_index.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../theme/glass_style.dart';
+import '../../application/allergy_controller.dart';
 import '../../application/minute_cast_controller.dart';
 import 'info_metric_card.dart';
 import 'precipitation_sparkline.dart';
@@ -19,7 +21,7 @@ import 'wind_compass_card.dart';
 /// The full weather-details layout: a wind compass and sunrise arc as the
 /// two graphic "hero" cards, a precipitation trend, then small metric
 /// cards (humidity, dew point, visibility, pressure, UV Index, last-hour
-/// precipitation) for everything else. Wind gusts, when enabled and
+/// precipitation, dust) for everything else. Wind gusts, when enabled and
 /// available, show as a small extra line inside the wind compass card
 /// itself rather than a separate tile — see [WindCompassCard.gustMph].
 ///
@@ -29,9 +31,11 @@ import 'wind_compass_card.dart';
 ///      Details" section and [weatherMetricPreferencesProvider].
 ///   2. **Availability** — does the current data actually have a value
 ///      for it? (NWS stations frequently don't report every field; UV
-///      Index specifically comes from Pirate Weather/MinuteCast's
-///      existing fetch — see [minuteCastControllerProvider] — and is
-///      unavailable whenever that is, e.g. no API key configured.)
+///      Index comes from Pirate Weather/MinuteCast's existing fetch --
+///      see [minuteCastControllerProvider]; Dust comes from a separate
+///      Open-Meteo Air Quality fetch -- see [allergyControllerProvider].
+///      Both are unavailable whenever their provider is, e.g. offline or
+///      a malformed response -- never a fake/default value.)
 ///
 /// A metric only renders when *both* are true. Nothing here ever shows a
 /// placeholder for a disabled or unavailable metric — the grid simply has
@@ -91,6 +95,15 @@ class WeatherDetailsGrid extends ConsumerWidget {
 
     final enabled = ref.watch(weatherMetricPreferencesProvider);
     final uvIndex = _uvIndexFrom(ref.watch(minuteCastControllerProvider(location)).value);
+    // Unlike MinuteCast (also fetched for the Precipitation sparkline
+    // regardless of the UV preference), nothing else in this widget needs
+    // Allergy data -- so it's only watched, and only ever fetched, when
+    // the user actually has the preference on. This is what keeps
+    // Allergies fully isolated: turning it off means literally no
+    // request, not just a hidden card.
+    final dustLevel = enabled.contains(WeatherMetric.allergies)
+        ? _dustLevelFrom(ref.watch(allergyControllerProvider(location)).value)
+        : null;
 
     final metrics = <InfoMetricCard>[
       if (enabled.contains(WeatherMetric.feelsLike) && feelsLikeFahrenheit != null)
@@ -147,6 +160,14 @@ class WeatherDetailsGrid extends ConsumerWidget {
           icon: Icons.umbrella_outlined,
           label: 'Last Hour',
           value: '${obs.precipitationLastHourInches!.toStringAsFixed(2)} in',
+          contentColor: contentColor,
+          style: style,
+        ),
+      if (enabled.contains(WeatherMetric.allergies) && dustLevel != null)
+        InfoMetricCard(
+          icon: Icons.grain_rounded,
+          label: 'Dust',
+          value: dustLevel.label,
           contentColor: contentColor,
           style: style,
         ),
@@ -228,5 +249,13 @@ double? _uvIndexFrom(MinuteCastAvailability? availability) {
     MinuteCastAvailable(:final data) => data.uvIndex,
     MinuteCastStale(:final data) => data.uvIndex,
     MinuteCastUnavailable() || null => null,
+  };
+}
+
+AllergyLevel? _dustLevelFrom(AllergyAvailability? availability) {
+  return switch (availability) {
+    AllergyAvailable(:final data) => data.dustLevel,
+    AllergyStale(:final data) => data.dustLevel,
+    AllergyUnavailable() || null => null,
   };
 }
